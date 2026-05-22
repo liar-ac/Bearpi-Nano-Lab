@@ -18,6 +18,20 @@
 
 ---
 
+## 目录
+
+- [功能特性](#功能特性)
+- [技术架构](#技术架构)
+- [快速开始](#快速开始)
+- [嵌入式固件](#嵌入式固件)
+- [项目结构](#项目结构)
+- [API 文档](#api-文档)
+- [部署](#部署)
+- [贡献](#贡献)
+- [许可证](#许可证)
+
+---
+
 ## 功能特性
 
 ### 核心功能
@@ -40,49 +54,53 @@
 - **批量同步** - 多设备指令同步执行，支持重试
 - **自动控制** - 温湿度阈值自动启停电机
 
+---
+
 ## 技术架构
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  BearPi-HM  │     │   Vue 3 +   │     │   uni-app   │
-│    Nano     │────▶│ Element Plus│     │  H5/小程序  │
-│  (设备端)   │ HTTP │  (Web 前端) │     │  (移动端)   │
-└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-       │                   │                   │
-       │                   ▼                   │
-       │            ┌─────────────┐            │
-       └───────────▶│   Django    │◀───────────┘
-                    │   REST +    │
-                    │  Channels   │
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │  MySQL   │ │  Redis   │ │ 华为云   │
-        │  数据库  │ │  缓存    │ │  IoTDA   │
-        └──────────┘ └──────────┘ └──────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   BearPi-HM     │     │   Vue 3 +       │     │   uni-app       │
+│     Nano        │────▶│   Element Plus  │     │   H5 / 小程序   │
+│   (嵌入式设备)   │ HTTP│   (Web 前端)    │     │   (移动端)      │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         │                       ▼                       │
+         │               ┌─────────────────┐             │
+         └──────────────▶│     Django      │◀────────────┘
+                         │   REST API +    │
+                         │   Channels      │
+                         └────────┬────────┘
+                                  │
+                    ┌─────────────┼─────────────┐
+                    ▼             ▼             ▼
+              ┌──────────┐ ┌──────────┐ ┌──────────┐
+              │  MySQL   │ │  Redis   │ │ 华为云   │
+              │  数据库  │ │  缓存    │ │  IoTDA   │
+              └──────────┘ └──────────┘ └──────────┘
 ```
+
+---
 
 ## 快速开始
 
 ### 环境要求
 
-| 组件 | 版本 |
-|------|------|
-| Python | 3.9+ |
-| Node.js | 18+ |
-| MySQL | 8.0+ |
-| Redis | 6.0+（可选，用于 WebSocket） |
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| Python | 3.9+ | 后端运行环境 |
+| Node.js | 18+ | 前端 / 移动端构建 |
+| MySQL | 8.0+ | 数据存储 |
+| Redis | 6.0+ | WebSocket 消息队列（可选） |
 
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/bearpi-nano-lab.git
-cd bearpi-nano-lab
+git clone https://github.com/liar-ac/Bearpi-Nano-Lab.git
+cd Bearpi-Nano-Lab
 ```
 
-### 2. 后端设置
+### 2. 后端启动
 
 ```bash
 cd backend
@@ -96,19 +114,19 @@ pip install -r requirements.txt
 
 # 配置环境变量
 cp .env.example .env
-# 编辑 .env，配置 MySQL 连接等
+# 编辑 .env，配置 MySQL 连接信息
 
 # 数据库迁移
 python manage.py migrate
 
-# 创建演示数据（可选）
+# 初始化演示数据（可选）
 python manage.py seed_demo
 
 # 启动服务
 python manage.py runserver 0.0.0.0:8000
 ```
 
-### 3. 前端设置
+### 3. 前端启动
 
 ```bash
 cd frontend
@@ -116,14 +134,14 @@ cd frontend
 # 安装依赖
 npm install
 
-# 开发模式
+# 开发模式（端口 5174）
 npm run dev
 
 # 生产打包
 npm run build
 ```
 
-### 4. 移动端设置
+### 4. 移动端启动
 
 ```bash
 cd mobile
@@ -138,40 +156,102 @@ npm run dev:h5
 npm run dev:mp-weixin
 ```
 
+---
+
+## 嵌入式固件
+
+### 简介
+
+`firmware/` 目录包含 BearPi-HM Nano（OpenHarmony / Hi3861）的示例固件代码。
+
+### 核心模块
+
+| 目录 | 功能 |
+|------|------|
+| `my_bearpi_lab_http` | **IoT 主固件** — 传感器采集 + HTTP 上报 + 指令拉取 + 执行器控制 |
+| `my_wifi_sta_connect` | WiFi STA 连接示例 |
+| `my_wifi_ap` | WiFi AP 热点示例 |
+| `my_tcp_server` | TCP 服务器示例 |
+| `my_udp_client` | UDP 客户端示例 |
+| `my_mqtt` | MQTT 客户端示例 |
+| `my_e53_ia1` | E53_IA1 传感器板驱动（温湿度 + 光照 + 电机 + 补光灯） |
+| `my_e53_sc2` | E53_SC2 传感器板驱动（MPU6050 六轴） |
+| `my_led` / `my_led_blink` | LED 控制示例 |
+| `my_pwm_led` | PWM 呼吸灯示例 |
+| `my_button` | 按键中断示例 |
+| `my_thread` / `my_mutex` / `my_semaphore` / `my_message` / `my_event` / `my_timer` | RTOS 基础示例 |
+
+### 配置
+
+编辑 `firmware/my_bearpi_lab_http/include/bearpi_lab_config.h`：
+
+```c
+#define BEARPI_WIFI_SSID           "YOUR_WIFI_SSID"        // 你的热点名称
+#define BEARPI_WIFI_PASSWORD       "YOUR_WIFI_PASSWORD"     // 你的热点密码
+#define BEARPI_SERVER_HOST         "YOUR_SERVER_IP"         // 后端服务器 IP
+#define BEARPI_SERVER_HOST_FALLBACK "192.168.137.1"         // 备用 IP（电脑热点）
+#define BEARPI_SERVER_PORT         8000                     // 后端端口
+#define BEARPI_DEVICE_SN           "BEARPI-NANO-A001"       // 设备唯一序列号
+#define BEARPI_DEVICE_TOKEN_SECRET "replace-me-device-token-secret" // 与后端一致
+#define BEARPI_REPORT_INTERVAL_MS  2000                     // 上报间隔（毫秒）
+```
+
+### 烧录步骤
+
+1. 安装 [DevEco Device Tool](https://device.harmonyos.com/cn/ide)
+2. 将 `firmware/my_bearpi_lab_http` 目录复制到 OpenHarmony SDK 的应用目录
+3. 修改 `bearpi_lab_config.h` 中的 WiFi 和服务器配置
+4. 编译并烧录到 BearPi-HM Nano 开发板
+5. 串口查看日志输出
+
+---
+
 ## 项目结构
 
 ```
-bearpi-nano-lab/
-├── backend/                    # Django 后端
+Bearpi-Nano-Lab/
+│
+├── firmware/                        # 嵌入式固件（BearPi-HM Nano）
+│   ├── my_bearpi_lab_http/         #   IoT 主固件
+│   ├── my_e53_ia1/                 #   E53_IA1 传感器驱动
+│   ├── my_wifi_sta_connect/        #   WiFi 连接示例
+│   └── ...                         #   其他示例
+│
+├── backend/                         # Django 后端
 │   ├── apps/
-│   │   ├── accounts/          # 用户认证
-│   │   ├── devices/           # 设备管理
-│   │   ├── telemetry/         # 遥测数据
-│   │   ├── alarms/            # 告警系统
-│   │   ├── audit/             # 审计日志
-│   │   ├── cloud/             # 云平台集成
-│   │   └── common/            # 公共模块
-│   ├── backend/               # Django 配置
+│   │   ├── accounts/               #   用户认证与权限
+│   │   ├── devices/                #   设备管理与指令
+│   │   ├── telemetry/              #   遥测数据采集
+│   │   ├── alarms/                 #   告警系统
+│   │   ├── audit/                  #   审计日志
+│   │   ├── cloud/                  #   华为云 IoTDA 集成
+│   │   └── common/                 #   公共模块（设备网关）
+│   ├── backend/                    #   Django 配置
 │   └── manage.py
-├── frontend/                   # Vue 3 前端
+│
+├── frontend/                        # Vue 3 Web 前端
 │   ├── src/
-│   │   ├── api/               # API 调用
-│   │   ├── components/        # 组件
-│   │   ├── views/             # 页面
-│   │   ├── stores/            # Pinia 状态
-│   │   ├── router/            # 路由
-│   │   ├── types/             # TypeScript 类型
-│   │   └── utils/             # 工具函数
+│   │   ├── api/                    #   API 调用层
+│   │   ├── components/             #   公共组件
+│   │   ├── views/                  #   页面视图
+│   │   ├── stores/                 #   Pinia 状态管理
+│   │   └── router/                 #   路由配置
 │   └── package.json
-├── mobile/                     # uni-app 移动端
+│
+├── mobile/                          # uni-app 移动端
 │   ├── src/
-│   │   ├── pages/             # 页面
-│   │   ├── api/               # API 调用
-│   │   ├── stores/            # 状态管理
-│   │   └── types/             # 类型定义
+│   │   ├── pages/                  #   页面
+│   │   ├── api/                    #   API 调用层
+│   │   └── stores/                 #   状态管理
 │   └── package.json
-└── docker-compose.yml          # Docker 部署
+│
+├── README.md
+├── LICENSE
+├── CONTRIBUTING.md
+└── CHANGELOG.md
 ```
+
+---
 
 ## API 文档
 
@@ -197,7 +277,7 @@ bearpi-nano-lab/
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/api/v1/ingest/telemetry` | POST | 设备数据上报 |
-| `/api/v1/sensors/:id/history` | GET | 历史数据 |
+| `/api/v1/sensors/:id/history` | GET | 历史数据查询 |
 
 ### 告警
 
@@ -210,8 +290,10 @@ bearpi-nano-lab/
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/v1/device/commands/pull` | POST | 拉取指令 |
-| `/api/v1/device/commands/ack` | POST | 指令回执 |
+| `/api/v1/device/commands/pull` | POST | 拉取待执行指令 |
+| `/api/v1/device/commands/ack` | POST | 指令执行回执 |
+
+---
 
 ## 部署
 
@@ -225,18 +307,22 @@ docker-compose up -d
 
 1. 配置 Nginx 反向代理（参考 `frontend/nginx.conf`）
 2. 使用 Gunicorn + Daphne 运行后端
-3. 打包前端并部署到静态文件目录
+3. 执行 `npm run build` 打包前端，部署到静态文件目录
+
+---
 
 ## 默认账号
 
-| 账号 | 密码 | 角色 |
-|------|------|------|
-| admin | admin123 | 管理员 |
-| exp | admin123 | 实验员 |
-| lab | admin123 | 实验员 |
-| viewer | admin123 | 只读 |
+| 账号 | 密码 | 角色 | 权限 |
+|------|------|------|------|
+| admin | admin123 | 管理员 | 全部权限 |
+| exp | admin123 | 实验员 | 查看 + 指令 + 告警确认 |
+| lab | admin123 | 实验员 | 查看 + 指令 + 告警确认 |
+| viewer | admin123 | 只读 | 仅查看 |
 
 > 首次使用请执行 `python manage.py seed_demo` 初始化演示数据
+
+---
 
 ## 传感器列表
 
@@ -245,18 +331,24 @@ docker-compose up -d
 | temp | 温度 | ℃ | 板载温度传感器 |
 | hum | 湿度 | % | 环境湿度 |
 | light | 光照 | lx | 光照强度 |
-| motor | 电机 | - | 通风电机状态 |
+| motor | 电机 | — | 通风电机状态（0/1） |
 | voltage | 电压 | V | 工作电压 |
 | current | 电流 | mA | 工作电流 |
 | power | 功耗 | mW | 瞬时功耗 |
+
+---
 
 ## 贡献
 
 欢迎贡献！请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
+---
+
 ## 许可证
 
 本项目采用 [MIT License](LICENSE) 开源协议。
+
+---
 
 ## 致谢
 

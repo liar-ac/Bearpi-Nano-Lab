@@ -1,0 +1,10 @@
+static_library("button_example") {
+    sources = [
+        "button_example.c",
+    ]
+
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//base/iot_hardware/interfaces/kits/wifiiot_lite",
+    ]
+}
