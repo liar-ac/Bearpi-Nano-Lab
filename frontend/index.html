@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1117" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="小熊派 Nano 开发板实验室管理系统：设备总览、告警中心、远程指令与实时数据。" />
+    <title>小熊派 Nano 实验室管理系统</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        background: #0b1117;
+        color: #edf4f8;
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system,
+          BlinkMacSystemFont, sans-serif;
+      }
+
+      .app-bootstrap {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        gap: 18px;
+        background:
+          radial-gradient(circle at 50% 38%, rgba(56, 189, 248, 0.18), transparent 420px),
+          radial-gradient(circle at 50% 62%, rgba(45, 212, 125, 0.12), transparent 360px),
+          #0b1117;
+      }
+
+      .app-bootstrap__inner {
+        display: grid;
+        place-items: center;
+        gap: 14px;
+      }
+
+      .app-bootstrap__logo {
+        display: grid;
+        place-items: center;
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(45, 212, 125, 0.16));
+        box-shadow: 0 0 0 1px rgba(188, 238, 255, 0.16), 0 12px 36px rgba(56, 189, 248, 0.18);
+        color: #38bdf8;
+        animation: bootPulse 1.6s ease-in-out infinite;
+      }
+
+      .app-bootstrap__title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #d6e6ef;
+      }
+
+      .app-bootstrap__hint {
+        margin: 0;
+        font-size: 13px;
+        color: #70818d;
+      }
+
+      .app-bootstrap__bar {
+        position: relative;
+        width: 200px;
+        height: 2px;
+        margin-top: 4px;
+        overflow: hidden;
+        background: rgba(188, 238, 255, 0.08);
+        border-radius: 999px;
+      }
+
+      .app-bootstrap__bar::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, transparent, #38bdf8, #2dd47d, transparent);
+        animation: bootSlide 1.2s linear infinite;
+      }
+
+      @keyframes bootPulse {
+        0%,
+        100% {
+          transform: translateY(0);
+          box-shadow: 0 0 0 1px rgba(188, 238, 255, 0.16), 0 12px 36px rgba(56, 189, 248, 0.18);
+        }
+        50% {
+          transform: translateY(-4px);
+          box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.32), 0 18px 48px rgba(56, 189, 248, 0.32);
+        }
+      }
+
+      @keyframes bootSlide {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(380%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .app-bootstrap__logo,
+        .app-bootstrap__bar::after {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="app-bootstrap" aria-label="正在加载">
+        <div class="app-bootstrap__inner">
+          <div class="app-bootstrap__logo" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <rect x="9" y="9" width="6" height="6" />
+              <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3" />
+            </svg>
+          </div>
+          <p class="app-bootstrap__title">BearPi Nano Lab Console</p>
+          <p class="app-bootstrap__hint">正在加载控制台资源...</p>
+          <div class="app-bootstrap__bar" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

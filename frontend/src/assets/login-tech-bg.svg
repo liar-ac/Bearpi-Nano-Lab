@@ -1,0 +1,77 @@
+<svg width="2400" height="1350" viewBox="0 0 2400 1350" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(540 388) rotate(42) scale(680 420)">
+      <stop stop-color="#1FE08B" stop-opacity="0.52"/>
+      <stop offset="0.48" stop-color="#1B8AFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#071019" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1850 900) rotate(-28) scale(780 520)">
+      <stop stop-color="#38BDF8" stop-opacity="0.46"/>
+      <stop offset="0.55" stop-color="#1F2937" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#071019" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2DD47D" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#38BDF8" stop-opacity="0.86"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="72" height="72" patternUnits="userSpaceOnUse">
+      <path d="M72 0H0V72" stroke="#8BD7FF" stroke-opacity="0.055" stroke-width="1"/>
+      <circle cx="0" cy="0" r="1.8" fill="#2DD47D" fill-opacity="0.16"/>
+    </pattern>
+  </defs>
+
+  <rect width="2400" height="1350" fill="#061019"/>
+  <rect width="2400" height="1350" fill="url(#grid)"/>
+  <rect width="2400" height="1350" fill="url(#g1)"/>
+  <rect width="2400" height="1350" fill="url(#g2)"/>
+
+  <g opacity="0.36">
+    <path d="M145 970H520L650 840H910L1040 710H1290L1418 582H1725L1856 451H2188" stroke="url(#line)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M220 312H566L684 430H940L1056 548H1388L1510 670H1888L2030 812H2260" stroke="#38BDF8" stroke-opacity="0.32" stroke-width="2" stroke-linecap="round"/>
+    <path d="M196 1110H720L820 1010H1076L1168 918H1392" stroke="#2DD47D" stroke-opacity="0.42" stroke-width="2" stroke-linecap="round"/>
+    <path d="M1480 252H1690L1782 344H1950L2050 444H2260" stroke="#38BDF8" stroke-opacity="0.38" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#glow)">
+    <circle cx="650" cy="840" r="8" fill="#2DD47D"/>
+    <circle cx="1040" cy="710" r="8" fill="#38BDF8"/>
+    <circle cx="1510" cy="670" r="7" fill="#2DD47D"/>
+    <circle cx="1856" cy="451" r="8" fill="#38BDF8"/>
+    <circle cx="820" cy="1010" r="6" fill="#2DD47D"/>
+    <circle cx="2050" cy="444" r="7" fill="#38BDF8"/>
+  </g>
+
+  <g transform="translate(1320 220)" opacity="0.16">
+    <rect x="0" y="0" width="760" height="760" rx="86" stroke="#BCEEFF" stroke-width="3"/>
+    <rect x="130" y="150" width="500" height="430" rx="44" stroke="#BCEEFF" stroke-width="3"/>
+    <rect x="232" y="250" width="296" height="216" rx="32" fill="#BCEEFF" fill-opacity="0.11" stroke="#BCEEFF" stroke-width="3"/>
+    <circle cx="298" cy="334" r="28" fill="#BCEEFF"/>
+    <circle cx="462" cy="334" r="28" fill="#BCEEFF"/>
+    <path d="M312 424C354 458 410 458 452 424" stroke="#BCEEFF" stroke-width="17" stroke-linecap="round"/>
+    <path d="M190 150L142 82M570 150L618 82" stroke="#BCEEFF" stroke-width="19" stroke-linecap="round"/>
+    <path d="M72 268H0M72 380H0M72 492H0M760 268H688M760 380H688M760 492H688" stroke="#BCEEFF" stroke-width="16" stroke-linecap="round"/>
+  </g>
+
+  <g opacity="0.08">
+    <text x="128" y="1096" fill="#EAF8FF" font-size="178" font-family="Inter, Arial, sans-serif" font-weight="800">BearPi Nano</text>
+    <text x="132" y="1220" fill="#EAF8FF" font-size="76" font-family="'Microsoft YaHei', Arial, sans-serif" font-weight="700">小熊派开发板实验室</text>
+  </g>
+
+  <g opacity="0.34">
+    <rect x="292" y="238" width="506" height="318" rx="34" stroke="#38BDF8" stroke-opacity="0.36"/>
+    <rect x="326" y="272" width="438" height="250" rx="24" fill="#0E1B25" fill-opacity="0.55" stroke="#2DD47D" stroke-opacity="0.24"/>
+    <path d="M374 350H488M374 406H620M374 462H550" stroke="#BCEEFF" stroke-opacity="0.38" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="686" cy="350" r="22" fill="#2DD47D" fill-opacity="0.72"/>
+    <circle cx="686" cy="432" r="22" fill="#38BDF8" fill-opacity="0.66"/>
+  </g>
+
+  <rect width="2400" height="1350" fill="url(#g1)" opacity="0.14"/>
+  <rect width="2400" height="1350" fill="#03080D" opacity="0.32"/>
+</svg>

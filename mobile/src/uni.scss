@@ -1,0 +1,49 @@
+/* uni.scss 全局样式变量（uni-app 内置 SCSS 入口，所有页面/组件可直接使用） */
+
+/* 主题色 —— 与 web 端 Element Plus 主色保持接近 */
+$uni-color-primary: #409eff;
+$uni-color-success: #67c23a;
+$uni-color-warning: #e6a23c;
+$uni-color-error: #f56c6c;
+$uni-color-info: #909399;
+
+/* 文字 */
+$uni-text-color: #303133;
+$uni-text-color-inverse: #ffffff;
+$uni-text-color-grey: #909399;
+$uni-text-color-placeholder: #c0c4cc;
+$uni-text-color-disable: #c0c4cc;
+
+/* 背景 */
+$uni-bg-color: #ffffff;
+$uni-bg-color-grey: #f5f7fa;
+$uni-bg-color-hover: #f5f7fa;
+$uni-bg-color-mask: rgba(0, 0, 0, 0.4);
+
+/* 边框 */
+$uni-border-color: #ebeef5;
+
+/* 字号 */
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 32rpx;
+
+/* 行高 */
+$uni-line-height-sm: 36rpx;
+$uni-line-height-base: 44rpx;
+$uni-line-height-lg: 48rpx;
+
+/* 间距 */
+$uni-spacing-row-sm: 10rpx;
+$uni-spacing-row-base: 20rpx;
+$uni-spacing-row-lg: 30rpx;
+
+$uni-spacing-col-sm: 8rpx;
+$uni-spacing-col-base: 16rpx;
+$uni-spacing-col-lg: 24rpx;
+
+/* 圆角 */
+$uni-border-radius-sm: 4rpx;
+$uni-border-radius-base: 6rpx;
+$uni-border-radius-lg: 12rpx;
+$uni-border-radius-circle: 50%;

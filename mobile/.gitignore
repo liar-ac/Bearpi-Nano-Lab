@@ -1,0 +1,10 @@
+node_modules
+unpackage
+dist
+.hbuilderx
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.local
+*.log
+.DS_Store

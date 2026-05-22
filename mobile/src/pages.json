@@ -1,0 +1,133 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/register/index",
+      "style": {
+        "navigationBarTitleText": "注册",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "总览",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/devices/index",
+      "style": {
+        "navigationBarTitleText": "设备",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/devices/detail",
+      "style": {
+        "navigationBarTitleText": "设备详情",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/sensors/realtime",
+      "style": {
+        "navigationBarTitleText": "实时数据"
+      }
+    },
+    {
+      "path": "pages/sensors/history",
+      "style": {
+        "navigationBarTitleText": "历史查询",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/alarms/index",
+      "style": {
+        "navigationBarTitleText": "告警",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/rules/index",
+      "style": {
+        "navigationBarTitleText": "规则配置",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/tasks/index",
+      "style": {
+        "navigationBarTitleText": "任务中心",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/topology/index",
+      "style": {
+        "navigationBarTitleText": "槽位拓扑",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/power/index",
+      "style": {
+        "navigationBarTitleText": "功耗监控",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/audit/index",
+      "style": {
+        "navigationBarTitleText": "审计日志",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/users/index",
+      "style": {
+        "navigationBarTitleText": "用户权限",
+        "enablePullDownRefresh": true
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "BearPi Nano Lab",
+    "navigationBarBackgroundColor": "#409eff",
+    "backgroundColor": "#f5f7fa"
+  },
+  "tabBar": {
+    "color": "#909399",
+    "selectedColor": "#409eff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/dashboard/index",
+        "text": "总览"
+      },
+      {
+        "pagePath": "pages/devices/index",
+        "text": "设备"
+      },
+      {
+        "pagePath": "pages/alarms/index",
+        "text": "告警"
+      }
+    ]
+  }
+}
