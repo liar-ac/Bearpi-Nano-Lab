@@ -7,11 +7,13 @@
 from datetime import timedelta
 from unittest import mock
 
+from django.contrib.auth.models import User
 from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIClient, APIRequestFactory
 
+from apps.accounts.models import UserRoleProfile
 from apps.cloud.models import CloudDeviceStatus
 from apps.common.device_gateway import (
     KNOWN_BOARD_PROFILES,
@@ -119,6 +121,24 @@ class CommandPullRaceTests(TestCase):
         ).update(status=DeviceCommand.Status.SENT)
         self.assertEqual(updated_first, 1)
         self.assertEqual(updated_second, 0)
+
+
+class DeviceCommandApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="command-admin", password="pass")
+        UserRoleProfile.objects.create(user=self.user, role=UserRoleProfile.Role.ADMIN)
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_send_command_to_missing_device_returns_404(self):
+        response = self.client.post(
+            "/api/v1/devices/999/commands",
+            {"type": DeviceCommand.Command.REBOOT, "params": {}},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(DeviceCommand.objects.exists())
 
 
 class DeviceListActiveFilterTests(TestCase):

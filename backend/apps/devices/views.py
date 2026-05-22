@@ -85,10 +85,12 @@ class DeviceCommandView(APIView):
         return super().get_permissions()
 
     def get(self, request, device_id):
-        commands = DeviceCommand.objects.filter(device_id=device_id)
+        device = get_object_or_404(Device, pk=device_id)
+        commands = DeviceCommand.objects.filter(device=device)
         return Response(DeviceCommandSerializer(commands, many=True).data)
 
     def post(self, request, device_id):
+        device = get_object_or_404(Device, pk=device_id)
         serializer = DeviceCommandCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         command_type = serializer.validated_data["type"]
@@ -104,7 +106,7 @@ class DeviceCommandView(APIView):
         ):
             message = "远程执行器控制指令已进入队列，等待设备 ACK"
         command = DeviceCommand.objects.create(
-            device_id=device_id,
+            device=device,
             command=command_type,
             params=params,
             message=message,
@@ -112,7 +114,7 @@ class DeviceCommandView(APIView):
         record_audit(
             request,
             AuditLog.Action.COMMAND_CREATE,
-            command.device.sn,
+            device.sn,
             f"下发{labels[command_type]}指令",
             {"deviceId": command.device_id, "commandId": command.id, "params": params},
         )
