@@ -80,6 +80,7 @@ int WifiConnect(const char *ssid, const char *psk)
     info = malloc(sizeof(WifiScanInfo) * WIFI_SCAN_HOTSPOT_LIMIT);
     if (info == NULL)
     {
+        printf("malloc WifiScanInfo failed\r\n");
         return -1;
     }
     //轮询查找WiFi列表
@@ -117,8 +118,10 @@ int WifiConnect(const char *ssid, const char *psk)
 
             //拷贝要连接的热点信息
             WifiDeviceConfig select_ap_config = {0};
-            strcpy(select_ap_config.ssid, info[i].ssid);
-            strcpy(select_ap_config.preSharedKey, psk);
+            strncpy(select_ap_config.ssid, info[i].ssid, sizeof(select_ap_config.ssid) - 1);
+            select_ap_config.ssid[sizeof(select_ap_config.ssid) - 1] = '\0';
+            strncpy(select_ap_config.preSharedKey, psk, sizeof(select_ap_config.preSharedKey) - 1);
+            select_ap_config.preSharedKey[sizeof(select_ap_config.preSharedKey) - 1] = '\0';
             select_ap_config.securityType = SELECT_WIFI_SECURITYTYPE;
 
             if (AddDeviceConfig(&select_ap_config, &result) == WIFI_SUCCESS)
@@ -135,16 +138,19 @@ int WifiConnect(const char *ssid, const char *psk)
         if(i == ssid_count-1)
         {
             printf("ERROR: No wifi as expected\r\n");
+            free(info);
             while(1) osDelay(100);
         }
     }
      //启动DHCP
-    if (g_lwip_netif)
-    {
-        dhcp_start(g_lwip_netif);
-        printf("begain to dhcp\r\n");
+    if (g_lwip_netif == NULL) {
+        printf("ERROR: netif not found, cannot start DHCP\r\n");
+        free(info);
+        return -1;
     }
 
+    dhcp_start(g_lwip_netif);
+    printf("begain to dhcp\r\n");
 
     //等待DHCP
     for(;;)
@@ -164,6 +170,7 @@ int WifiConnect(const char *ssid, const char *psk)
 
     osDelay(100);
 
+    free(info);
     return 0;
 }
 

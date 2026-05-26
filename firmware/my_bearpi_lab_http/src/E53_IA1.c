@@ -207,8 +207,11 @@ void E53_IA1_Read_Data(void)
     uint8_t recv_data[2] = { 0 };
     bh1750_i2c_data.receiveBuf = recv_data;
     bh1750_i2c_data.receiveLen = 2;
-	I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data);   // 读取传感器数据
-	E53_IA1_Data.Lux = (float)(((recv_data[0]<<8) + recv_data[1])/1.2);   
+    if (I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data) == 0) {
+        E53_IA1_Data.Lux = (float)(((recv_data[0]<<8) + recv_data[1])/1.2);
+    } else {
+        printf("[E53_IA1] BH1750 I2cRead failed, keeping previous lux\r\n");
+    }   
 
     uint8_t  data[3];    //data array for checksum verification
     uint16_t dat,tmp;
@@ -220,7 +223,10 @@ void E53_IA1_Read_Data(void)
     sht30_i2c_data.sendLen = 2;
     sht30_i2c_data.receiveBuf = SHT3X_Data_Buffer;
     sht30_i2c_data.receiveLen = 6;
-	I2cWriteread(WIFI_IOT_I2C_IDX_1,(SHT30_Addr<<1)|0x00,&sht30_i2c_data); 																							//Read bh1750 sensor data 
+    if (I2cWriteread(WIFI_IOT_I2C_IDX_1,(SHT30_Addr<<1)|0x00,&sht30_i2c_data) != 0) {
+        printf("[E53_IA1] SHT30 I2cWriteread failed, keeping previous temp/hum\r\n");
+        return;
+    }
     
     //    /* check tem */
     data[0] = SHT3X_Data_Buffer[0];
