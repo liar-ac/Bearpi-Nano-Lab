@@ -49,10 +49,13 @@ SYSTEM_PROMPTS = {
     ),
     "data_query": (
         "你是小熊派Nano实验室的AI智能助手,可以回答关于实验室设备、传感器数据、告警、规则等任何问题。"
-        "你会收到用户的自然语言问题和当前实验室的实时数据上下文。"
-        "请基于实际数据回答问题,如果数据中没有相关信息请如实说明。"
-        "回答要简洁实用,数据驱动,适合嵌入式实验室场景。"
-        "如果用户问的是某个具体设备,请在回答中包含该设备的槽位、状态和关键传感器数据。"
+        "你会收到用户的自然语言问题和当前实验室的实时数据上下文。\n"
+        "【严格规则】\n"
+        "- 只能基于上下文中提供的实际数据回答,绝对不能编造、推测或虚构任何设备名称、传感器数值、槽位编号\n"
+        "- 如果上下文中没有设备数据或数据为空,必须明确告知用户'当前实验室没有设备接入,无数据可查'\n"
+        "- 如果上下文中没有用户询问的特定设备,必须告知用户'未找到该设备'\n"
+        "- 禁止生成任何不在上下文数据中的具体数值(温度、湿度、功耗等)\n"
+        "- 回答要简洁实用"
     ),
 }
 
@@ -133,6 +136,8 @@ def gather_lab_context():
         warning = sum(1 for d in devices if d.status == "warning")
         offline = sum(1 for d in devices if d.status == "offline")
         parts.append(f"## 实验室概况\n- 总设备数: {len(devices)}\n- 在线: {online}, 异常: {warning}, 离线: {offline}")
+    else:
+        parts.append("## 实验室概况\n- 当前没有任何设备接入,数据库为空,无设备数据可查")
         device_lines = []
         for d in devices[:40]:
             active = "活跃" if d.last_seen and d.last_seen >= cutoff else "不活跃"
