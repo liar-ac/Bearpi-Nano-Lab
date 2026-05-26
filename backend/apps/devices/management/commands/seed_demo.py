@@ -111,6 +111,17 @@ class Command(BaseCommand):
             ("hum", "湿度", "%", "环境湿度", 25, 75, 48 + index * 4),
             ("light", "光照", "lx", "光照强度，低于阈值时开启补光灯", 20, 1200, 420 + index * 86),
             ("motor", "电机驱动", "", "IA1 通风电机状态，0=关闭，1=开启", 0, 1, 0),
+            ("voltage", "工作电压", "V", "开发板工作电压", 4.75, 5.25, 5.0 + index * 0.01),
+            ("current", "工作电流", "mA", "开发板工作电流", 0, 500, 80 + index * 12),
+            ("power", "功耗", "mW", "开发板瞬时功耗", 0, 2500, 400 + index * 60),
+            ("voltage_sampled", "电压采样来源", "", "0=估算，1=ADC采样", 0, 1, index % 2),
+            ("current_sampled", "电流采样来源", "", "0=估算，1=ADC采样", 0, 1, index % 2),
+            ("power_sampled", "功耗采样来源", "", "0=估算，1=ADC采样", 0, 1, index % 2),
+            ("power_mcu", "主控功耗", "mW", "主控芯片功耗", 0, 800, 250),
+            ("power_wifi", "WiFi功耗", "mW", "WiFi通信模块功耗", 0, 1000, 120 + index * 5),
+            ("power_sensor", "传感器功耗", "mW", "E53_IA1传感器板功耗", 0, 500, 35),
+            ("power_motor", "电机功耗", "mW", "通风电机功耗", 0, 1500, 0),
+            ("power_light", "补光灯功耗", "mW", "补光灯功耗", 0, 500, 0),
         ]
         for code, name, unit, description, min_value, max_value, base in templates:
             sensor, _ = Sensor.objects.update_or_create(
@@ -132,6 +143,20 @@ class Command(BaseCommand):
                 ts = now - timedelta(minutes=(95 - point_index) * 5)
                 if code == "motor":
                     value = 1 if point_index % 24 in (0, 1, 2) else 0
+                elif code in ("voltage_sampled", "current_sampled", "power_sampled"):
+                    value = float(base)
+                elif code in ("power_mcu", "power_wifi", "power_sensor"):
+                    value = round(base + math.sin(point_index / 5) * 15, 2)
+                elif code in ("power_motor", "power_light"):
+                    value = round(base + math.sin(point_index / 8) * 10, 2)
+                elif code == "power":
+                    motor_on = 1 if point_index % 24 in (0, 1, 2) else 0
+                    value = round(base + motor_on * 600 + math.sin(point_index / 4) * 20, 2)
+                elif code == "current":
+                    motor_on = 1 if point_index % 24 in (0, 1, 2) else 0
+                    value = round(base + motor_on * 120 + math.sin(point_index / 4) * 5, 2)
+                elif code == "voltage":
+                    value = round(base + math.sin(point_index / 6) * 0.05, 3)
                 else:
                     value = round(base + math.sin(point_index / 4) * (max_value - min_value) * 0.04, 3)
                 points.append(RawPoint(device=device, sensor=sensor, ts=ts, value=value))
