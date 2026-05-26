@@ -230,7 +230,7 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    devices.value = (await fetchDevices()).results;
+    devices.value = (await fetchDevices({ includeInactive: true })).results;
     ensureTrendDevice();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '功耗数据加载失败';

@@ -223,7 +223,7 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const response = await fetchDevices();
+    const response = await fetchDevices({ includeInactive: true });
     devices.value = response.results;
     ensureTrendDevice();
     void loadPowerTrend();
