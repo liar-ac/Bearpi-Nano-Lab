@@ -90,3 +90,6 @@ TRUST_PROXY_HEADERS = False
 REALTIME_GROUP_NAME = "realtime"
 XIAOMI_MIMO_API_URL = "https://token-plan-cn.xiaomimimo.com/anthropic"
 XIAOMI_MIMO_API_KEY = "test-ai-key"
+XIAOMI_MIMO_MODEL = "claude-3-5-sonnet-20241022"
+XIAOMI_MIMO_TIMEOUT = 30
+AI_ENABLE_DEBUG_FALLBACK = False

@@ -224,14 +224,12 @@ TRUST_PROXY_HEADERS = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true
 REALTIME_GROUP_NAME = os.getenv("REALTIME_GROUP_NAME", "realtime")
 
 # AI 分析服务配置（小米 MiMo API, Anthropic 兼容格式）
-XIAOMI_MIMO_API_URL = os.getenv(
-    "XIAOMI_MIMO_API_URL",
-    "https://token-plan-cn.xiaomimimo.com/anthropic",
-)
-XIAOMI_MIMO_API_KEY = os.getenv(
-    "XIAOMI_MIMO_API_KEY",
-    "tp-cvuo0p7gpvd7q7ki78xuezf83j7vwxjfkdmzqxmqn4mkzmuq",
-)
+# 必须在 .env 中配置 XIAOMI_MIMO_API_KEY 才能使用 AI 功能
+XIAOMI_MIMO_API_URL = os.getenv("XIAOMI_MIMO_API_URL", "https://token-plan-cn.xiaomimimo.com/anthropic")
+XIAOMI_MIMO_API_KEY = os.getenv("XIAOMI_MIMO_API_KEY", "")
+XIAOMI_MIMO_MODEL = os.getenv("XIAOMI_MIMO_MODEL", "claude-3-5-sonnet-20241022")
+XIAOMI_MIMO_TIMEOUT = int(os.getenv("XIAOMI_MIMO_TIMEOUT", "30"))
+AI_ENABLE_DEBUG_FALLBACK = os.getenv("AI_ENABLE_DEBUG_FALLBACK", "false").lower() == "true"
 
 # 生产环境兜底警告：仍在使用默认弱凭据时给出明确告警
 if not DEBUG:

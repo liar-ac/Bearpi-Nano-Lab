@@ -83,9 +83,24 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     let message = `请求失败：${response.status}`;
     try {
       const body = await response.json();
-      message = body.detail ?? body.message ?? message;
+      if (typeof body === 'object' && body !== null) {
+        const candidates = [body.error, body.detail, body.message];
+        if (Array.isArray(body.non_field_errors)) {
+          candidates.push(body.non_field_errors.join(', '));
+        }
+        message = candidates.find((v) => typeof v === 'string' && v.length > 0) ?? message;
+      } else if (typeof body === 'string' && body.length > 0) {
+        message = body.slice(0, 500);
+      }
     } catch {
-      // Keep the generic message when the server did not return JSON.
+      try {
+        const text = await response.text();
+        if (text && text.length > 0) {
+          message = text.slice(0, 500);
+        }
+      } catch {
+        // Keep the generic message when the server did not return readable body.
+      }
     }
     if (response.status === 401) {
       clearSession();

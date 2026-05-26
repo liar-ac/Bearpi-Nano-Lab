@@ -1,11 +1,12 @@
 import json
 import logging
+import socket
 import urllib.error
 import urllib.request
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from django.conf import settings
-from django.db.models import Avg, Count, Max, Min
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -15,7 +16,6 @@ from rest_framework.views import APIView
 from apps.accounts.serializers import resolve_role
 from apps.alarms.models import Alarm
 from apps.devices.models import Device, Sensor
-from apps.telemetry.models import RawPoint
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,17 @@ SYSTEM_PROMPTS = {
     ),
 }
 
+DEBUG_FALLBACK_REPLY = (
+    "AI云服务暂不可用,当前无法完成智能分析。\n\n"
+    "请检查以下几点:\n"
+    "1. backend/.env 中 XIAOMI_MIMO_API_KEY 是否已配置\n"
+    "2. XIAOMI_MIMO_MODEL 模型名称是否正确\n"
+    "3. XIAOMI_MIMO_API_URL 网络是否可达\n"
+    "4. 后端控制台日志中的具体错误信息\n\n"
+    "当前为开发演示模式(DEBUG=true, AI_ENABLE_DEBUG_FALLBACK=true),"
+    "已返回此兜底提示代替502错误页。"
+)
+
 
 def build_alarm_context(context):
     alarm = context.get("alarm", {})
@@ -75,7 +86,10 @@ def build_alarm_context(context):
     if recent_sensors:
         parts.append("\n## 传感器最新数据")
         for s in recent_sensors:
-            parts.append(f"- {s.get('name', '?')}: {s.get('value', '?')}{s.get('unit', '')} (阈值: {s.get('min', '无')}~{s.get('max', '无')})")
+            parts.append(
+                f"- {s.get('name', '?')}: {s.get('value', '?')}{s.get('unit', '')} "
+                f"(阈值: {s.get('min', '无')}~{s.get('max', '无')})"
+            )
 
     return "\n".join(parts)
 
@@ -199,9 +213,22 @@ def gather_lab_context():
     return "\n\n".join(parts)
 
 
-def call_mimo_api(api_url, api_key, system_prompt, user_message):
+def _api_url_host():
+    try:
+        return urlparse(settings.XIAOMI_MIMO_API_URL).hostname or ""
+    except Exception:
+        return ""
+
+
+def _mask_key(key):
+    if not key or len(key) < 12:
+        return "***"
+    return key[:4] + "****" + key[-4:]
+
+
+def call_mimo_api(api_url, api_key, model, timeout, system_prompt, user_message):
     payload = json.dumps({
-        "model": "claude-3-5-sonnet-20241022",
+        "model": model,
         "max_tokens": 1024,
         "system": system_prompt,
         "messages": [{"role": "user", "content": user_message}],
@@ -219,17 +246,27 @@ def call_mimo_api(api_url, api_key, system_prompt, user_message):
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = resp.read().decode("utf-8")
             resp_status = resp.status
+            return resp_status, body, None
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         resp_status = exc.code
-        return resp_status, body
+        error_summary = body[:300]
+        try:
+            error_data = json.loads(body)
+            error_summary = error_data.get("error", {}).get("message", "") or error_data.get("detail", "") or error_data.get("message", "") or body[:300]
+        except (ValueError, TypeError, KeyError, AttributeError):
+            pass
+        return resp_status, body, error_summary
     except urllib.error.URLError as exc:
-        raise ConnectionError(str(exc.reason))
-
-    return resp_status, body
+        reason = str(exc.reason)
+        if isinstance(exc.reason, socket.timeout):
+            raise TimeoutError("连接超时")
+        raise ConnectionError(reason)
+    except socket.timeout:
+        raise TimeoutError("请求超时")
 
 
 def parse_ai_reply(body):
@@ -248,46 +285,116 @@ def parse_ai_reply(body):
     elif isinstance(data.get("content"), str):
         reply = data["content"]
     elif isinstance(data.get("choices"), list) and data["choices"]:
-        reply = data["choices"][0].get("message", {}).get("content", "")
+        choice = data["choices"][0]
+        if isinstance(choice.get("message"), dict):
+            reply = choice["message"].get("content", "")
+        elif isinstance(choice.get("text"), str):
+            reply = choice["text"]
     if not reply:
         reply = json.dumps(data, ensure_ascii=False)[:2000]
     return reply
 
 
+def _debug_fallback_enabled():
+    return settings.DEBUG and getattr(settings, "AI_ENABLE_DEBUG_FALLBACK", False)
+
+
 def call_ai_api(system_prompt, user_message):
     api_key = settings.XIAOMI_MIMO_API_KEY
     api_url = settings.XIAOMI_MIMO_API_URL
+    model = settings.XIAOMI_MIMO_MODEL
+    timeout = settings.XIAOMI_MIMO_TIMEOUT
+    url_host = _api_url_host()
 
-    if not api_key:
+    if not api_key or api_key == "your-api-key-here":
+        logger.warning("AI API key not configured (XIAOMI_MIMO_API_KEY)")
         return Response(
-            {"error": "AI服务未配置API Key", "reply": ""},
+            {"error": "AI服务未配置APIKey，请在backend/.env中配置XIAOMI_MIMO_API_KEY", "reply": ""},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     try:
-        resp_status, body = call_mimo_api(api_url, api_key, system_prompt, user_message)
-    except ConnectionError as exc:
-        logger.error("AI API connection failed: %s", exc)
+        resp_status, body, upstream_error = call_mimo_api(
+            api_url, api_key, model, timeout, system_prompt, user_message
+        )
+    except TimeoutError as exc:
+        logger.error("AI API timeout (%ss): %s", timeout, exc)
+        if _debug_fallback_enabled():
+            return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务超时"})
         return Response(
-            {"error": f"AI服务连接失败: {exc}", "reply": ""},
+            {"error": f"AI服务请求超时({timeout}秒)，请检查网络或增大XIAOMI_MIMO_TIMEOUT", "reply": ""},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    except ConnectionError as exc:
+        logger.error("AI API connection failed to %s: %s", url_host, exc)
+        if _debug_fallback_enabled():
+            return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务连接失败"})
+        return Response(
+            {"error": f"AI服务连接失败({url_host})：{exc}。请检查XIAOMI_MIMO_API_URL和网络连通性", "reply": ""},
             status=status.HTTP_502_BAD_GATEWAY,
         )
     except Exception as exc:
-        logger.error("AI API request failed: %s", exc)
+        logger.error("AI API unexpected error: %s", exc, exc_info=True)
+        if _debug_fallback_enabled():
+            return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务请求异常"})
         return Response(
-            {"error": f"AI服务请求异常: {exc}", "reply": ""},
+            {"error": f"AI服务请求异常：{exc}", "reply": ""},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
     if resp_status != 200:
-        logger.error("AI API returned %d: %s", resp_status, body[:500])
+        logger.error(
+            "AI API returned HTTP %d from %s (model=%s, key=%s): %s",
+            resp_status, url_host, model, _mask_key(api_key), upstream_error[:200] if upstream_error else body[:200],
+        )
+        if _debug_fallback_enabled():
+            return Response({"reply": DEBUG_FALLBACK_REPLY, "error": f"AI服务返回HTTP {resp_status}"})
+
+        error_msg = f"AI服务返回错误(HTTP {resp_status})"
+        if upstream_error:
+            error_msg += f"：{upstream_error[:120]}"
+        if resp_status == 401:
+            error_msg = "AI服务认证失败，请检查XIAOMI_MIMO_API_KEY是否正确"
+        elif resp_status == 403:
+            error_msg = "AI服务拒绝访问，请检查APIKey权限"
+        elif resp_status == 404:
+            error_msg = f"AI服务接口不存在，请检查XIAOMI_MIMO_API_URL(当前：{url_host})"
+        elif resp_status == 429:
+            error_msg = "AI服务请求频率超限，请稍后重试"
+        elif resp_status >= 500:
+            error_msg = f"AI服务内部错误(HTTP {resp_status})，请稍后重试"
+
         return Response(
-            {"error": f"AI服务返回错误: HTTP {resp_status}", "reply": ""},
+            {"error": error_msg, "reply": ""},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
     reply = parse_ai_reply(body)
+    if not reply:
+        logger.warning("AI API returned 200 but empty reply, body: %s", body[:300])
+        if _debug_fallback_enabled():
+            return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务返回空内容"})
+        return Response(
+            {"error": "AI服务返回内容为空，请检查模型名称是否正确", "reply": ""},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
     return Response({"reply": reply})
+
+
+class AiHealthView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        api_key = settings.XIAOMI_MIMO_API_KEY
+        configured = bool(api_key and api_key != "your-api-key-here")
+        return Response({
+            "configured": configured,
+            "model": settings.XIAOMI_MIMO_MODEL,
+            "provider": "xiaomi-mimo",
+            "url_host": _api_url_host(),
+            "debug_fallback": _debug_fallback_enabled(),
+        })
 
 
 class AiChatView(APIView):

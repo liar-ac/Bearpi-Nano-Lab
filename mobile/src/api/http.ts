@@ -92,8 +92,19 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     return res.data;
   }
 
-  const body = res.data as { detail?: string; message?: string } | undefined;
-  const message = body?.detail ?? body?.message ?? `请求失败：${res.statusCode}`;
+  const rawData = res.data as unknown;
+  let message = `请求失败：${res.statusCode}`;
+  if (rawData && typeof rawData === 'object') {
+    const body = rawData as Record<string, unknown>;
+    const candidates = [body.error, body.detail, body.message];
+    if (Array.isArray(body.non_field_errors)) {
+      candidates.push(body.non_field_errors.join(', '));
+    }
+    const found = candidates.find((v) => typeof v === 'string' && (v as string).length > 0);
+    if (found) message = found as string;
+  } else if (typeof rawData === 'string' && rawData.length > 0) {
+    message = rawData.slice(0, 500);
+  }
   if (res.statusCode === 401) clearSession();
   throw new ApiError(message, res.statusCode);
 }
