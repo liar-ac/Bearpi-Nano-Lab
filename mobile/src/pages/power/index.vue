@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { onHide, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app';
+import AiChat from '@/components/AiChat.vue';
 import { fetchDevices, fetchHistory } from '@/api/lab';
 import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
 import type { Device, HistoryInterval, Point, RealtimeMessage, Sensor } from '@/types/domain';
@@ -233,6 +234,23 @@ async function load() {
   }
 }
 
+function buildAnalysisContext() {
+  const device = selectedTrendDevice.value;
+  const sensor = selectedTrendPowerSensor.value;
+  return {
+    device: device ? { sn: device.sn, slotNo: device.slotNo, status: device.status } : {},
+    sensor: sensor ? { name: sensor.name, code: sensor.code, unit: sensor.unit, min: sensor.min, max: sensor.max } : {},
+    stats: {
+      count: trendStats.value.count,
+      min: trendStats.value.min,
+      peak: trendStats.value.peak,
+      average: trendStats.value.average,
+      energy: trendStats.value.energy,
+    },
+    points: trendPoints.value.slice(-30).map((p) => ({ ts: p.ts, value: p.value })),
+  };
+}
+
 function ensureTrendDevice() {
   if (!trendDevices.value.length) {
     selectedTrendDeviceId.value = null;
@@ -406,9 +424,18 @@ watch([selectedTrendDeviceId, trendRange], () => {
           <text class="eyebrow">PowerTrend</text>
           <text class="title small">功耗趋势与能耗</text>
         </view>
-        <wd-button size="small" plain :disabled="!selectedTrendPowerSensor || trendLoading" @click="loadPowerTrend">
-          刷新曲线
-        </wd-button>
+        <view class="trend-toolbar-actions">
+          <wd-button size="small" plain :disabled="!selectedTrendPowerSensor || trendLoading" @click="loadPowerTrend">
+            刷新曲线
+          </wd-button>
+          <AiChat
+            v-if="selectedTrendDevice"
+            feature="data_analysis"
+            :context="buildAnalysisContext()"
+            trigger-text="AI分析"
+            title="AI数据分析"
+          />
+        </view>
       </view>
 
       <scroll-view class="filter-scroll" scroll-x>
@@ -698,6 +725,12 @@ watch([selectedTrendDeviceId, trendRange], () => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16rpx;
+}
+
+.trend-toolbar-actions {
+  display: flex;
+  gap: 12rpx;
+  align-items: center;
 }
 
 .filter-scroll {

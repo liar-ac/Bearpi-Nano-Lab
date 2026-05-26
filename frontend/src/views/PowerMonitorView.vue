@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { BatteryCharging, Cpu, Eye, Gauge, PlugZap, RefreshCcw, Search, Zap } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
+import AiChat from '@/components/AiChat.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import TrendChart from '@/components/LineChart.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -182,12 +183,14 @@ const trendStats = computed(() => {
   const latestPower = selectedTrendDevice.value ? powerValue(selectedTrendDevice.value) : 0;
   const values = points.map((point) => point.value).filter((value) => Number.isFinite(value));
   const peak = values.length ? Math.max(...values) : latestPower;
+  const minVal = values.length ? Math.min(...values) : latestPower;
   const average = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : latestPower;
   const energy = computeEnergyWh(points, selectedTrendRange.value.durationMs, latestPower);
   return {
     energy,
     average,
     peak,
+    min: minVal,
     count: points.length
   };
 });
@@ -229,7 +232,6 @@ async function load() {
   try {
     devices.value = (await fetchDevices()).results;
     ensureTrendDevice();
-    void loadPowerTrend();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '功耗数据加载失败';
   } finally {
@@ -256,6 +258,23 @@ function sourceLatest(sensor: Sensor) {
   if (!sensor.latest) return '从未上报';
   const label = sensor.latest.value >= 0.5 ? 'ADC采样' : '估算';
   return `${label} / ${relativeTime(sensor.latest.ts)}`;
+}
+
+function buildAnalysisContext() {
+  const device = selectedTrendDevice.value;
+  const sensor = selectedTrendPowerSensor.value;
+  return {
+    device: device ? { sn: device.sn, slotNo: device.slotNo, status: device.status } : {},
+    sensor: sensor ? { name: sensor.name, code: sensor.code, unit: sensor.unit, min: sensor.min, max: sensor.max } : {},
+    stats: {
+      count: trendStats.value.count,
+      min: trendStats.value.min,
+      peak: trendStats.value.peak,
+      average: trendStats.value.average,
+      energy: trendStats.value.energy,
+    },
+    points: trendPoints.value.slice(-30).map((p) => ({ ts: p.ts, value: p.value })),
+  };
 }
 
 function ensureTrendDevice() {
@@ -372,6 +391,13 @@ onMounted(load);
             <RefreshCcw :size="16" />
             刷新曲线
           </el-button>
+          <AiChat
+            v-if="selectedTrendDevice"
+            feature="data_analysis"
+            :context="buildAnalysisContext()"
+            trigger-text="AI分析"
+            title="AI数据分析"
+          />
         </div>
       </div>
 

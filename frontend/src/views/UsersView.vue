@@ -44,8 +44,8 @@ async function changeRole(user: AccountUser, role: UserRole) {
   } catch (cause) {
     if (cause !== 'cancel') {
       ElMessage.error(cause instanceof Error ? cause.message : '权限更新失败');
+      await load();
     }
-    await load();
   }
 }
 

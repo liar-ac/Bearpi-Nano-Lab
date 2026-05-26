@@ -2,6 +2,7 @@
 import { RefreshCcw, Save, SlidersHorizontal } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { computed, onMounted, reactive, ref } from 'vue';
+import AiChat from '@/components/AiChat.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import { fetchRules, updateRule } from '@/api/lab';
 import { useAuthStore } from '@/stores/auth';
@@ -101,6 +102,20 @@ function ruleRange(rule: RuleConfig) {
   return `${min} - ${max}`;
 }
 
+function buildRuleSuggestionContext() {
+  return {
+    rules: rules.value.map((r) => ({
+      deviceName: r.deviceName,
+      name: r.name,
+      code: r.code,
+      unit: r.unit,
+      min: r.min,
+      max: r.max,
+      slotNo: r.slotNo,
+    })),
+  };
+}
+
 onMounted(load);
 </script>
 
@@ -112,10 +127,13 @@ onMounted(load);
         <h2>规则配置</h2>
         <p>配置温度、湿度、光照等传感器阈值，实时上报时会直接触发告警判定。</p>
       </div>
-      <el-button :loading="loading" @click="load">
-        <RefreshCcw :size="17" />
-        刷新
-      </el-button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <el-button :loading="loading" @click="load">
+          <RefreshCcw :size="17" />
+          刷新
+        </el-button>
+        <AiChat feature="rule_suggestion" :context="buildRuleSuggestionContext()" trigger-text="AI建议" title="AI规则建议" />
+      </div>
     </section>
 
     <el-alert

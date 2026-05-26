@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/v1/", include("apps.telemetry.urls")),
     path("api/v1/", include("apps.alarms.urls")),
     path("api/v1/", include("apps.audit.urls")),
+    path("api/v1/", include("apps.ai.urls")),
     re_path(
         r"^assets/(?P<path>.*)$",
         serve,

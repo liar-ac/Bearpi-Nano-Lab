@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.alarms",
     "apps.cloud",
     "apps.audit",
+    "apps.ai",
 ]
 
 MIDDLEWARE = [
@@ -89,23 +90,33 @@ TEMPLATES = [
 WSGI_APPLICATION = "backend.wsgi.application"
 ASGI_APPLICATION = "backend.asgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("MYSQL_DATABASE", "bearpi_lab"),
-        "USER": os.getenv("MYSQL_USER", "root"),
-        "PASSWORD": os.getenv("MYSQL_PASSWORD", "password"),
-        "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
-        "PORT": os.getenv("MYSQL_PORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-            "connect_timeout": 5,
-            "read_timeout": 10,
-            "write_timeout": 10,
-        },
+_db_engine = os.getenv("DB_ENGINE", "sqlite")
+
+if _db_engine == "mysql":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("MYSQL_DATABASE", "bearpi_lab"),
+            "USER": os.getenv("MYSQL_USER", "root"),
+            "PASSWORD": os.getenv("MYSQL_PASSWORD", "password"),
+            "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
+            "PORT": os.getenv("MYSQL_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+                "connect_timeout": 5,
+                "read_timeout": 10,
+                "write_timeout": 10,
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -211,6 +222,16 @@ DEVICE_BULK_SYNC_PER_DEVICE_MS = int(os.getenv("DEVICE_BULK_SYNC_PER_DEVICE_MS",
 DEVICE_BULK_SYNC_MAX_DELAY_MS = int(os.getenv("DEVICE_BULK_SYNC_MAX_DELAY_MS", "30000"))
 TRUST_PROXY_HEADERS = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true"
 REALTIME_GROUP_NAME = os.getenv("REALTIME_GROUP_NAME", "realtime")
+
+# AI 分析服务配置（小米 MiMo API, Anthropic 兼容格式）
+XIAOMI_MIMO_API_URL = os.getenv(
+    "XIAOMI_MIMO_API_URL",
+    "https://token-plan-cn.xiaomimimo.com/anthropic",
+)
+XIAOMI_MIMO_API_KEY = os.getenv(
+    "XIAOMI_MIMO_API_KEY",
+    "tp-cvuo0p7gpvd7q7ki78xuezf83j7vwxjfkdmzqxmqn4mkzmuq",
+)
 
 # 生产环境兜底警告：仍在使用默认弱凭据时给出明确告警
 if not DEBUG:

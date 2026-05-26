@@ -71,11 +71,11 @@ const selectedSlot = computed(
 );
 
 onShow(async () => {
-  await store.loadDevices({ status: 'all' });
+  await store.loadDevices({ status: 'all', includeInactive: true });
   if (!unsubscribe) unsubscribe = subscribeRealtime(store.applyRealtime);
   if (!refreshTimer) {
     refreshTimer = setInterval(() => {
-      void store.loadDevices({ status: 'all' });
+      void store.loadDevices({ status: 'all', includeInactive: true });
     }, 10000);
   }
 });
@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
 });
 
 onPullDownRefresh(async () => {
-  await store.loadDevices({ status: 'all' });
+  await store.loadDevices({ status: 'all', includeInactive: true });
   uni.stopPullDownRefresh();
 });
 
@@ -109,7 +109,7 @@ function teardown() {
 }
 
 function refreshDevices() {
-  void store.loadDevices({ status: 'all' });
+  void store.loadDevices({ status: 'all', includeInactive: true });
 }
 
 function sensorByCode(device: Device | undefined, code: string) {

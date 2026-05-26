@@ -2,6 +2,7 @@
 import { CheckCircle2, Filter, RefreshCcw, Siren } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import AiChat from '@/components/AiChat.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import { ackAlarm, fetchAlarms } from '@/api/lab';
 import { subscribeAlarmEvents } from '@/api/realtime';
@@ -114,6 +115,13 @@ function statusText(status: AlarmStatus) {
   return status === 'new' ? '待确认' : status === 'acknowledged' ? '已确认' : '已关闭';
 }
 
+function buildAiContext(alarm: Alarm) {
+  return {
+    alarm: { level: alarm.level, message: alarm.message, ts: alarm.ts, status: alarm.status },
+    device: { sn: alarm.deviceName },
+  };
+}
+
 function statusTagType(status: AlarmStatus) {
   return status === 'new' ? 'danger' : status === 'closed' ? 'info' : 'success';
 }
@@ -197,16 +205,19 @@ function statusTagType(status: AlarmStatus) {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button
-              size="small"
-              :disabled="row.status !== 'new' || !auth.canAckAlarm"
-              @click="acknowledge(row)"
-            >
-              <CheckCircle2 :size="15" />
-              确认
-            </el-button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <AiChat feature="alarm_diagnosis" :context="buildAiContext(row)" trigger-text="AI诊断" title="AI告警诊断" />
+              <el-button
+                size="small"
+                :disabled="row.status !== 'new' || !auth.canAckAlarm"
+                @click="acknowledge(row)"
+              >
+                <CheckCircle2 :size="15" />
+                确认
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

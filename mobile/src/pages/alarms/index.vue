@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { onHide, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app';
+import AiChat from '@/components/AiChat.vue';
 import { ackAlarm, fetchAlarms } from '@/api/lab';
 import { subscribeAlarmEvents } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
@@ -157,6 +158,13 @@ function statusText(status: AlarmStatus) {
 function statusType(status: AlarmStatus) {
   return status === 'new' ? 'danger' : status === 'closed' ? 'primary' : 'success';
 }
+
+function buildAiContext(alarm: Alarm) {
+  return {
+    alarm: { level: alarm.level, message: alarm.message, ts: alarm.ts, status: alarm.status },
+    device: { sn: alarm.deviceName },
+  };
+}
 </script>
 
 <template>
@@ -239,15 +247,18 @@ function statusType(status: AlarmStatus) {
         <text class="message">{{ alarm.message }}</text>
         <view class="alarm-footer">
           <text>{{ formatDateTime(alarm.ts) }}</text>
-          <wd-button
-            v-if="alarm.status === 'new'"
-            size="small"
-            type="primary"
-            :disabled="!auth.canAckAlarm"
-            @click="acknowledge(alarm)"
-          >
-            确认
-          </wd-button>
+          <view class="alarm-actions">
+            <AiChat feature="alarm_diagnosis" :context="buildAiContext(alarm)" trigger-text="AI诊断" title="AI告警诊断" />
+            <wd-button
+              v-if="alarm.status === 'new'"
+              size="small"
+              type="primary"
+              :disabled="!auth.canAckAlarm"
+              @click="acknowledge(alarm)"
+            >
+              确认
+            </wd-button>
+          </view>
         </view>
       </view>
     </view>
@@ -388,6 +399,12 @@ function statusType(status: AlarmStatus) {
   justify-content: space-between;
   align-items: center;
   gap: 16rpx;
+}
+
+.alarm-actions {
+  display: flex;
+  gap: 12rpx;
+  align-items: center;
 }
 
 .device {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
+import AiChat from '@/components/AiChat.vue';
 import { fetchRules, updateRule } from '@/api/lab';
 import { useAuthStore } from '@/stores/auth';
 import type { RuleConfig } from '@/types/domain';
@@ -106,6 +107,20 @@ async function save(rule: RuleConfig) {
   }
 }
 
+function buildRuleSuggestionContext() {
+  return {
+    rules: rules.value.map((r) => ({
+      deviceName: r.deviceName,
+      name: r.name,
+      code: r.code,
+      unit: r.unit,
+      min: r.min,
+      max: r.max,
+      slotNo: r.slotNo,
+    })),
+  };
+}
+
 function parseOptionalNumber(value: string) {
   const text = value.trim();
   if (!text) return null;
@@ -128,7 +143,10 @@ function ruleRange(rule: RuleConfig) {
         <text class="title">规则配置</text>
         <text class="subtitle">只显示真实上报的板卡；未接入槽位保持空位。</text>
       </view>
-      <wd-button size="small" plain :loading="loading" @click="load">刷新</wd-button>
+      <view class="toolbar-actions">
+        <wd-button size="small" plain :loading="loading" @click="load">刷新</wd-button>
+        <AiChat feature="rule_suggestion" :context="buildRuleSuggestionContext()" trigger-text="AI建议" title="AI规则建议" />
+      </view>
     </view>
 
     <view v-if="!auth.canCommand" class="notice info">当前为只读权限：可以查看规则，不能修改阈值。</view>
@@ -186,12 +204,10 @@ function ruleRange(rule: RuleConfig) {
         </view>
         <view class="edit-row">
           <view class="field">
-            <text>下限</text>
-            <input v-model="drafts[rule.id].min" type="digit" :disabled="!auth.canCommand" placeholder="无" />
+            <wd-input v-model="drafts[rule.id].min" label="下限" type="digit" :disabled="!auth.canCommand" placeholder="无" />
           </view>
           <view class="field">
-            <text>上限</text>
-            <input v-model="drafts[rule.id].max" type="digit" :disabled="!auth.canCommand" placeholder="无" />
+            <wd-input v-model="drafts[rule.id].max" label="上限" type="digit" :disabled="!auth.canCommand" placeholder="无" />
           </view>
           <wd-button size="small" type="primary" :loading="savingId === rule.id" :disabled="!auth.canCommand" @click="save(rule)">
             保存
@@ -224,6 +240,12 @@ function ruleRange(rule: RuleConfig) {
   display: flex;
   justify-content: space-between;
   gap: 20rpx;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12rpx;
+  align-items: center;
 }
 
 .eyebrow,
@@ -375,24 +397,6 @@ function ruleRange(rule: RuleConfig) {
 
 .field {
   flex: 1;
-
-  text {
-    display: block;
-    margin-bottom: 8rpx;
-    color: $uni-text-color-grey;
-    font-size: 22rpx;
-  }
-
-  input {
-    height: 70rpx;
-    padding: 0 16rpx;
-    border: 1rpx solid $uni-border-color;
-    border-radius: 8rpx;
-    background: #f8fafc;
-    color: #172033;
-    font-size: 26rpx;
-    box-sizing: border-box;
-  }
 }
 
 .notice,

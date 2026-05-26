@@ -200,3 +200,17 @@ export function fetchAuditLogs(params: { action?: string; limit?: number; offset
   });
   return request<PagedResponse<AuditLog>>(`/audit-logs${query}`).then(normalizeListResponse);
 }
+
+export function sendAiChat(feature: string, context: Record<string, unknown>) {
+  return request<{ reply: string; feature: string }>('/ai/chat', {
+    method: 'POST',
+    data: { feature, context }
+  });
+}
+
+export function sendAiQuery(question: string) {
+  return request<{ reply: string; question: string }>('/ai/query', {
+    method: 'POST',
+    data: { question }
+  });
+}

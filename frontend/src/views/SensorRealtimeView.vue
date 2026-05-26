@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Gauge, Pause, Play, RadioTower, Send } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import LineChart from '@/components/LineChart.vue';
 import MetricCard from '@/components/MetricCard.vue';
@@ -49,9 +49,9 @@ async function load() {
   try {
     device.value = await fetchDevice(deviceId.value);
     sensor.value = device.value.sensors.find((item) => item.id === sensorId.value) ?? null;
-    if (sensor.value?.latest) {
-      points.value = [{ ts: sensor.value.latest.ts, value: sensor.value.latest.value }];
-    }
+    points.value = sensor.value?.latest
+      ? [{ ts: sensor.value.latest.ts, value: sensor.value.latest.value }]
+      : [];
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '实时数据加载失败';
   }
@@ -94,6 +94,10 @@ onMounted(async () => {
   unsubscribe = subscribeRealtime((message) => {
     appendRealtimePoint(message);
   });
+});
+
+watch([deviceId, sensorId], async () => {
+  await load();
 });
 
 onBeforeUnmount(() => unsubscribe?.());

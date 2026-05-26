@@ -78,7 +78,7 @@ async function load() {
   loading.value = true;
   error.value = '';
   const [devicesResult, alarmsResult] = await Promise.allSettled([
-    store.loadDevices({ status: 'all' }),
+    store.loadDevices({ status: 'all', includeInactive: true }),
     fetchAlarms({ limit: 100 })
   ]);
 

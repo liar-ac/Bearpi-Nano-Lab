@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "apps.alarms",
     "apps.cloud",
     "apps.audit",
+    "apps.ai",
 ]
 
 MIDDLEWARE = [
@@ -87,3 +88,5 @@ DEVICE_BULK_SYNC_PER_DEVICE_MS = 50
 DEVICE_BULK_SYNC_MAX_DELAY_MS = 30000
 TRUST_PROXY_HEADERS = False
 REALTIME_GROUP_NAME = "realtime"
+XIAOMI_MIMO_API_URL = "https://token-plan-cn.xiaomimimo.com/anthropic"
+XIAOMI_MIMO_API_KEY = "test-ai-key"

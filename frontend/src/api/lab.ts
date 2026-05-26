@@ -195,3 +195,17 @@ export function updateRule(sensorId: number, payload: { min?: number | null; max
     body: JSON.stringify(payload)
   });
 }
+
+export function sendAiChat(feature: string, context: Record<string, unknown>) {
+  return request<{ reply: string; feature: string }>('/ai/chat', {
+    method: 'POST',
+    body: JSON.stringify({ feature, context })
+  });
+}
+
+export function sendAiQuery(question: string) {
+  return request<{ reply: string; question: string }>('/ai/query', {
+    method: 'POST',
+    body: JSON.stringify({ question })
+  });
+}

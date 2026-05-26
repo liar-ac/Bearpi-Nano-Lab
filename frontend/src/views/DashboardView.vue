@@ -16,6 +16,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AiQuery from '@/components/AiQuery.vue';
 import BoardGrid from '@/components/BoardGrid.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import LabCapacityGrid from '@/components/LabCapacityGrid.vue';
@@ -162,9 +163,12 @@ async function runBulkControl(actuator: 'motor' | 'light', mode: 'auto' | 'on' |
       </div>
       <div class="ops-status-grid">
         <span><ShieldCheck :size="16" /> JWT 已启用</span>
-        <span><Database :size="16" /> MySQL</span>
+        <span><Database :size="16" /> SQLite</span>
         <span :class="`runtime-${realtimeTone}`"><Activity :size="16" /> {{ realtimeStatusLabel[realtimeState.status] }}</span>
         <span><RadioTower :size="16" /> HTTP网关就绪</span>
+      </div>
+      <div style="margin-top:10px;">
+        <AiQuery />
       </div>
     </section>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onHide, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app';
+import AiQuery from '@/components/AiQuery.vue';
 import { fetchAlarms, sendBulkCommand } from '@/api/lab';
 import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
@@ -164,6 +165,7 @@ function showConfirm(content: string) {
         <text class="copy">实时查看板卡接入、离线、告警与云同步状态。</text>
       </view>
       <view class="quick-actions">
+        <AiQuery />
         <wd-button size="small" plain @click="openTopology">槽位拓扑</wd-button>
         <wd-button size="small" plain @click="openPower">功耗监控</wd-button>
         <wd-button size="small" plain @click="openRules">规则配置</wd-button>

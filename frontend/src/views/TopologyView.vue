@@ -95,10 +95,10 @@ const selectedSlot = computed(() =>
 );
 
 onMounted(async () => {
-  await store.loadDevices({ status: 'all' });
+  await store.loadDevices({ status: 'all', includeInactive: true });
   unsubscribe = subscribeRealtime(store.applyRealtime);
   refreshTimer = window.setInterval(() => {
-    void store.loadDevices({ status: 'all' });
+    void store.loadDevices({ status: 'all', includeInactive: true });
   }, 10_000);
 });
 
@@ -223,7 +223,7 @@ function selectSlot(slot: LabSlot) {
         <el-input v-model="keyword" clearable placeholder="搜索槽位、SN、成员、IP" class="topology-search">
           <template #prefix><Search :size="16" /></template>
         </el-input>
-        <el-button :loading="store.loading" @click="store.loadDevices({ status: 'all' })">
+        <el-button :loading="store.loading" @click="store.loadDevices({ status: 'all', includeInactive: true })">
           <RefreshCcw :size="16" />
           刷新
         </el-button>

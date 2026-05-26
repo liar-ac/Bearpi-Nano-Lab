@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Download, FileSpreadsheet, Search } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import LineChart from '@/components/LineChart.vue';
 import { fetchDevice, fetchHistory } from '@/api/lab';
@@ -89,6 +89,11 @@ function exportExcel() {
 onMounted(async () => {
   await loadMeta();
   await search();
+});
+
+watch([deviceId, sensorId], async () => {
+  await loadMeta();
+  data.value = null;
 });
 </script>
 

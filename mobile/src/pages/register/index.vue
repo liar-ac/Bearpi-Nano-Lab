@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -8,6 +9,12 @@ const name = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const loading = ref(false);
+
+onLoad(() => {
+  if (auth.isAuthenticated) {
+    uni.reLaunch({ url: '/pages/dashboard/index' });
+  }
+});
 
 async function submit() {
   if (!username.value.trim() || !password.value) {
