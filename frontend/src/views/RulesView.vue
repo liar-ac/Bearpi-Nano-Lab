@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { RefreshCcw, Save, SlidersHorizontal } from 'lucide-vue-next';
+import { RefreshCcw, Save, SlidersHorizontal, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { computed, onMounted, reactive, ref } from 'vue';
-import AiChat from '@/components/AiChat.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import { fetchRules, updateRule } from '@/api/lab';
+import { fetchRules, sendAiChat, updateRule } from '@/api/lab';
 import { useAuthStore } from '@/stores/auth';
 import type { RuleConfig } from '@/types/domain';
 import { formatValue } from '@/utils/format';
@@ -116,6 +115,32 @@ function buildRuleSuggestionContext() {
   };
 }
 
+const aiVisible = ref(false);
+const aiLoading = ref(false);
+const aiReply = ref('');
+const aiError = ref('');
+
+async function runAiSuggestion() {
+  aiVisible.value = true;
+  aiLoading.value = true;
+  aiReply.value = '';
+  aiError.value = '';
+  try {
+    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext());
+    aiReply.value = result.reply;
+  } catch (cause) {
+    aiError.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
+    ElMessage.error(aiError.value);
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+function closeAiDialog() {
+  if (aiLoading.value) return;
+  aiVisible.value = false;
+}
+
 onMounted(load);
 </script>
 
@@ -132,7 +157,10 @@ onMounted(load);
           <RefreshCcw :size="17" />
           刷新
         </el-button>
-        <AiChat feature="rule_suggestion" :context="buildRuleSuggestionContext()" trigger-text="AI建议" title="AI规则建议" />
+        <el-button @click="runAiSuggestion">
+          <Sparkles :size="17" />
+          AI建议
+        </el-button>
       </div>
     </section>
 
@@ -221,6 +249,29 @@ onMounted(load);
       <SlidersHorizontal :size="18" />
       <span>规则保存后，后续遥测进入后端时会用新的 min/max 立即判定告警；设备端无需重新烧录。</span>
     </section>
+
+    <el-dialog
+      v-model="aiVisible"
+      title="AI规则建议"
+      width="min(640px, 90vw)"
+      append-to-body
+      :close-on-click-modal="!aiLoading"
+      @close="closeAiDialog"
+    >
+      <div v-if="aiLoading" class="ai-loading">
+        <el-icon class="is-loading" :size="28"><Sparkles /></el-icon>
+        <p>AI正在分析规则配置,请稍候...</p>
+      </div>
+      <div v-else-if="aiError" class="ai-error">
+        <p>{{ aiError }}</p>
+      </div>
+      <div v-else-if="aiReply" class="ai-reply">
+        <pre>{{ aiReply }}</pre>
+      </div>
+      <template #footer>
+        <el-button @click="closeAiDialog">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -319,5 +370,39 @@ onMounted(load);
   .rule-slot-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
+}
+
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 0;
+  color: var(--text-muted);
+}
+
+.ai-loading p { margin: 0; }
+
+.ai-error {
+  padding: 20px;
+  color: var(--red);
+  background: rgba(255, 104, 116, 0.08);
+  border-radius: var(--radius);
+}
+
+.ai-error p { margin: 0; }
+
+.ai-reply pre {
+  margin: 0;
+  padding: 20px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
 }
 </style>

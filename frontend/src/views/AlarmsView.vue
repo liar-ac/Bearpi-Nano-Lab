@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { CheckCircle2, Filter, RefreshCcw, Siren } from 'lucide-vue-next';
+import { CheckCircle2, Filter, RefreshCcw, Sparkles, Siren } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import AiChat from '@/components/AiChat.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import { ackAlarm, fetchAlarms } from '@/api/lab';
+import { ackAlarm, fetchAlarms, sendAiChat } from '@/api/lab';
 import { subscribeAlarmEvents } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
 import type { Alarm, AlarmLevel, AlarmStatus, RealtimeAlarmEvent } from '@/types/domain';
@@ -40,6 +39,38 @@ const alarmStats = computed(() => {
   const acknowledged = alarms.value.filter((item) => item.status === 'acknowledged').length;
   return { total, pending, critical, acknowledged };
 });
+
+const aiVisible = ref(false);
+const aiLoading = ref(false);
+const aiReply = ref('');
+const aiError = ref('');
+const aiAlarmName = ref('');
+
+async function diagnoseAlarm(alarm: Alarm) {
+  aiVisible.value = true;
+  aiLoading.value = true;
+  aiReply.value = '';
+  aiError.value = '';
+  aiAlarmName.value = alarm.deviceName;
+  try {
+    const context = {
+      alarm: { level: alarm.level, message: alarm.message, ts: alarm.ts, status: alarm.status },
+      device: { sn: alarm.deviceName },
+    };
+    const result = await sendAiChat('alarm_diagnosis', context);
+    aiReply.value = result.reply;
+  } catch (cause) {
+    aiError.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
+    ElMessage.error(aiError.value);
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+function closeAiDialog() {
+  if (aiLoading.value) return;
+  aiVisible.value = false;
+}
 
 async function load() {
   loading.value = true;
@@ -113,13 +144,6 @@ function levelText(alarm: Alarm) {
 
 function statusText(status: AlarmStatus) {
   return status === 'new' ? '待确认' : status === 'acknowledged' ? '已确认' : '已关闭';
-}
-
-function buildAiContext(alarm: Alarm) {
-  return {
-    alarm: { level: alarm.level, message: alarm.message, ts: alarm.ts, status: alarm.status },
-    device: { sn: alarm.deviceName },
-  };
 }
 
 function statusTagType(status: AlarmStatus) {
@@ -208,7 +232,10 @@ function statusTagType(status: AlarmStatus) {
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <div style="display:flex;gap:6px;align-items:center;">
-              <AiChat feature="alarm_diagnosis" :context="buildAiContext(row)" trigger-text="AI诊断" title="AI告警诊断" />
+              <el-button size="small" type="primary" plain @click="diagnoseAlarm(row)">
+                <Sparkles :size="15" />
+                AI诊断
+              </el-button>
               <el-button
                 size="small"
                 :disabled="row.status !== 'new' || !auth.canAckAlarm"
@@ -222,6 +249,29 @@ function statusTagType(status: AlarmStatus) {
         </el-table-column>
       </el-table>
     </el-card>
+
+    <el-dialog
+      v-model="aiVisible"
+      :title="`AI告警诊断 - ${aiAlarmName}`"
+      width="min(640px, 90vw)"
+      append-to-body
+      :close-on-click-modal="!aiLoading"
+      @close="closeAiDialog"
+    >
+      <div v-if="aiLoading" class="ai-loading">
+        <el-icon class="is-loading" :size="28"><Sparkles /></el-icon>
+        <p>AI正在分析告警,请稍候...</p>
+      </div>
+      <div v-else-if="aiError" class="ai-error">
+        <p>{{ aiError }}</p>
+      </div>
+      <div v-else-if="aiReply" class="ai-reply">
+        <pre>{{ aiReply }}</pre>
+      </div>
+      <template #footer>
+        <el-button @click="closeAiDialog">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -283,6 +333,40 @@ function statusTagType(status: AlarmStatus) {
 
 .alarm-level-select {
   width: 150px;
+}
+
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 0;
+  color: var(--text-muted);
+}
+
+.ai-loading p { margin: 0; }
+
+.ai-error {
+  padding: 20px;
+  color: var(--red);
+  background: rgba(255, 104, 116, 0.08);
+  border-radius: var(--radius);
+}
+
+.ai-error p { margin: 0; }
+
+.ai-reply pre {
+  margin: 0;
+  padding: 20px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
 }
 
 @media (max-width: 760px) {

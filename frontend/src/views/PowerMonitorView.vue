@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { BatteryCharging, Cpu, Eye, Gauge, PlugZap, RefreshCcw, Search, Zap } from 'lucide-vue-next';
+import { BatteryCharging, Cpu, Eye, Gauge, PlugZap, RefreshCcw, Search, Sparkles, Zap } from 'lucide-vue-next';
+import { ElMessage } from 'element-plus';
 import { computed, onMounted, ref, watch } from 'vue';
-import AiChat from '@/components/AiChat.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import TrendChart from '@/components/LineChart.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
-import { fetchDevices, fetchHistory } from '@/api/lab';
+import { fetchDevices, fetchHistory, sendAiChat } from '@/api/lab';
 import type { Device, HistoryInterval, Point, Sensor } from '@/types/domain';
 import { formatDateTime, formatValue, relativeTime } from '@/utils/format';
 
@@ -277,6 +277,33 @@ function buildAnalysisContext() {
   };
 }
 
+const aiVisible = ref(false);
+const aiLoading = ref(false);
+const aiReply = ref('');
+const aiError = ref('');
+
+async function runAiAnalysis() {
+  if (!selectedTrendDevice.value) return;
+  aiVisible.value = true;
+  aiLoading.value = true;
+  aiReply.value = '';
+  aiError.value = '';
+  try {
+    const result = await sendAiChat('data_analysis', buildAnalysisContext());
+    aiReply.value = result.reply;
+  } catch (cause) {
+    aiError.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
+    ElMessage.error(aiError.value);
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+function closeAiDialog() {
+  if (aiLoading.value) return;
+  aiVisible.value = false;
+}
+
 function ensureTrendDevice() {
   if (!trendDevices.value.length) {
     selectedTrendDeviceId.value = null;
@@ -391,13 +418,10 @@ onMounted(load);
             <RefreshCcw :size="16" />
             刷新曲线
           </el-button>
-          <AiChat
-            v-if="selectedTrendDevice"
-            feature="data_analysis"
-            :context="buildAnalysisContext()"
-            trigger-text="AI分析"
-            title="AI数据分析"
-          />
+          <el-button :disabled="!selectedTrendDevice" @click="runAiAnalysis">
+            <Sparkles :size="16" />
+            AI分析
+          </el-button>
         </div>
       </div>
 
@@ -552,6 +576,29 @@ onMounted(load);
         </div>
       </template>
     </el-drawer>
+
+    <el-dialog
+      v-model="aiVisible"
+      title="AI数据分析"
+      width="min(640px, 90vw)"
+      append-to-body
+      :close-on-click-modal="!aiLoading"
+      @close="closeAiDialog"
+    >
+      <div v-if="aiLoading" class="ai-loading">
+        <el-icon class="is-loading" :size="28"><Sparkles /></el-icon>
+        <p>AI正在分析功耗数据,请稍候...</p>
+      </div>
+      <div v-else-if="aiError" class="ai-error">
+        <p>{{ aiError }}</p>
+      </div>
+      <div v-else-if="aiReply" class="ai-reply">
+        <pre>{{ aiReply }}</pre>
+      </div>
+      <template #footer>
+        <el-button @click="closeAiDialog">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -680,5 +727,39 @@ h4 {
   .trend-card-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 0;
+  color: var(--text-muted);
+}
+
+.ai-loading p { margin: 0; }
+
+.ai-error {
+  padding: 20px;
+  color: var(--red);
+  background: rgba(255, 104, 116, 0.08);
+  border-radius: var(--radius);
+}
+
+.ai-error p { margin: 0; }
+
+.ai-reply pre {
+  margin: 0;
+  padding: 20px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
 }
 </style>
