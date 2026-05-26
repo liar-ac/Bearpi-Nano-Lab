@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Close, Loading, MagicStick } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { sendAiChat } from '@/api/lab';
 
 type AiFeature = 'alarm_diagnosis' | 'data_analysis' | 'rule_suggestion';
@@ -31,6 +31,7 @@ async function analyze() {
   loading.value = true;
   error.value = '';
   reply.value = '';
+  await nextTick();
   try {
     const result = await sendAiChat(props.feature, props.context);
     reply.value = result.reply;
@@ -58,6 +59,7 @@ function close() {
     v-model="visible"
     :title="displayTitle"
     width="min(640px, 90vw)"
+    append-to-body
     :close-on-click-modal="!loading"
     @close="close"
   >
