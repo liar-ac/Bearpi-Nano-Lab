@@ -7,6 +7,7 @@ import { sendAiQuery } from '@/api/lab';
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  diagnostic?: Record<string, unknown> | null;
 }
 
 const visible = ref(false);
@@ -36,11 +37,15 @@ async function send() {
   scrollToBottom();
 
   try {
-    const result = await sendAiQuery(question);
-    messages.value.push({ role: 'assistant', content: result.reply });
+    const result = await sendAiQuery(question) as { reply: string; error?: string; diagnostic?: Record<string, unknown> };
+    messages.value.push({
+      role: 'assistant',
+      content: result.reply,
+      diagnostic: result.diagnostic ?? null,
+    });
   } catch (cause) {
     const error = cause instanceof Error ? cause.message : 'AI查询失败';
-    messages.value.push({ role: 'assistant', content: `错误: ${error}` });
+    messages.value.push({ role: 'assistant', content: `请求失败: ${error}`, diagnostic: null });
     ElMessage.error(error);
   } finally {
     loading.value = false;
@@ -66,6 +71,15 @@ function open() {
 
 function clearChat() {
   messages.value = [];
+}
+
+function formatDiagnostic(diag: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (diag.upstream_status) parts.push(`HTTP ${diag.upstream_status}`);
+  if (diag.model) parts.push(`模型: ${diag.model}`);
+  if (diag.url_host) parts.push(`Host: ${diag.url_host}`);
+  if (diag.reason) parts.push(diag.reason as string);
+  return parts.join(' | ');
 }
 </script>
 
@@ -97,6 +111,10 @@ function clearChat() {
         <div v-for="(msg, index) in messages" :key="index" :class="['chat-message', msg.role]">
           <div class="message-bubble">
             <pre>{{ msg.content }}</pre>
+            <details v-if="msg.diagnostic" class="diagnostic-details">
+              <summary>开发调试信息</summary>
+              <pre class="diagnostic-pre">{{ formatDiagnostic(msg.diagnostic) }}</pre>
+            </details>
           </div>
         </div>
 
@@ -210,6 +228,29 @@ function clearChat() {
   align-items: center;
   gap: 8px;
   color: var(--text-muted);
+}
+
+.diagnostic-details {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.diagnostic-details summary {
+  cursor: pointer;
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.diagnostic-pre {
+  margin-top: 6px;
+  padding: 8px;
+  background: rgba(246, 184, 75, 0.08);
+  border-radius: 6px;
+  color: var(--amber);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .chat-input {

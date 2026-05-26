@@ -5,13 +5,13 @@ import { sendAiQuery } from '@/api/lab';
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  diagnostic?: Record<string, unknown> | null;
 }
 
 const visible = ref(false);
 const input = ref('');
 const loading = ref(false);
 const messages = ref<ChatMessage[]>([]);
-const chatBody = ref<any>(null);
 
 const exampleQuestions = [
   '哪块板的功耗最高?',
@@ -31,19 +31,21 @@ async function send() {
   loading.value = true;
 
   await nextTick();
-  scrollToBottom();
 
   try {
-    const result = await sendAiQuery(question);
-    messages.value.push({ role: 'assistant', content: result.reply });
+    const result = await sendAiQuery(question) as { reply: string; error?: string; diagnostic?: Record<string, unknown> };
+    messages.value.push({
+      role: 'assistant',
+      content: result.reply,
+      diagnostic: result.diagnostic ?? null,
+    });
   } catch (cause) {
     const error = cause instanceof Error ? cause.message : 'AI查询失败';
-    messages.value.push({ role: 'assistant', content: `错误: ${error}` });
+    messages.value.push({ role: 'assistant', content: `请求失败: ${error}`, diagnostic: null });
     uni.showToast({ title: error, icon: 'none' });
   } finally {
     loading.value = false;
     await nextTick();
-    scrollToBottom();
   }
 }
 
@@ -52,16 +54,21 @@ function useExample(question: string) {
   void send();
 }
 
-function scrollToBottom() {
-  // scroll-into-view prop handles scrolling inside scroll-view
-}
-
 function open() {
   visible.value = true;
 }
 
 function clearChat() {
   messages.value = [];
+}
+
+function formatDiagnostic(diag: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (diag.upstream_status) parts.push(`HTTP ${diag.upstream_status}`);
+  if (diag.model) parts.push(`模型: ${diag.model}`);
+  if (diag.url_host) parts.push(`Host: ${diag.url_host}`);
+  if (diag.reason) parts.push(diag.reason as string);
+  return parts.join(' | ');
 }
 </script>
 
@@ -99,6 +106,10 @@ function clearChat() {
         >
           <view class="message-bubble">
             <text selectable>{{ msg.content }}</text>
+            <view v-if="msg.diagnostic" class="diagnostic-box">
+              <text class="diagnostic-title">调试信息</text>
+              <text class="diagnostic-text">{{ formatDiagnostic(msg.diagnostic) }}</text>
+            </view>
           </view>
         </view>
 
@@ -173,13 +184,8 @@ function clearChat() {
   margin-bottom: 16rpx;
 }
 
-.chat-message.user {
-  justify-content: flex-end;
-}
-
-.chat-message.assistant {
-  justify-content: flex-start;
-}
+.chat-message.user { justify-content: flex-end; }
+.chat-message.assistant { justify-content: flex-start; }
 
 .message-bubble {
   max-width: 85%;
@@ -197,31 +203,42 @@ function clearChat() {
 .chat-message.user .message-bubble {
   background: $uni-color-primary;
   border-bottom-right-radius: 4rpx;
-
-  text {
-    color: #ffffff;
-  }
+  text { color: #ffffff; }
 }
 
 .chat-message.assistant .message-bubble {
   background: #f0f2f5;
   border: 1rpx solid $uni-border-color;
   border-bottom-left-radius: 4rpx;
-
-  text {
-    color: #172033;
-  }
+  text { color: #172033; }
 }
 
 .loading-bubble {
   display: flex;
   align-items: center;
   gap: 12rpx;
+  text { color: $uni-text-color-grey; font-size: 24rpx; }
+}
 
-  text {
-    color: $uni-text-color-grey;
-    font-size: 24rpx;
-  }
+.diagnostic-box {
+  margin-top: 12rpx;
+  padding: 12rpx;
+  border-top: 1rpx dashed $uni-border-color;
+}
+
+.diagnostic-title {
+  display: block;
+  color: #9a5b00;
+  font-size: 22rpx;
+  font-weight: 700;
+  margin-bottom: 6rpx;
+}
+
+.diagnostic-text {
+  display: block;
+  color: #9a5b00;
+  font-size: 22rpx;
+  line-height: 1.5;
 }
 
 .chat-input {
