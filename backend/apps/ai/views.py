@@ -213,9 +213,47 @@ def gather_lab_context():
     return "\n\n".join(parts)
 
 
-def _api_url_host():
+# ---------------------------------------------------------------------------
+# URL normalization
+# ---------------------------------------------------------------------------
+
+def normalize_mimo_anthropic_url(raw_url):
+    """Normalize MiMo Anthropic-compatible base URL to a full /v1/messages endpoint.
+
+    Accepted inputs:
+      - token-plan-cn.xiaomimimo.com
+      - https://token-plan-cn.xiaomimimo.com
+      - https://token-plan-cn.xiaomimimo.com/anthropic
+      - https://token-plan-cn.xiaomimimo.com/anthropic/v1/messages
+      - https://api.xiaomimimo.com/anthropic
+    """
+    if not raw_url or not raw_url.strip():
+        return ""
+
+    url = raw_url.strip()
+
+    # Auto-add https:// if missing
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+
+    # Remove trailing slash
+    url = url.rstrip("/")
+
+    # Already has /v1/messages — leave as-is
+    if url.endswith("/v1/messages"):
+        return url
+
+    # Has /anthropic but not /v1/messages — append
+    if url.endswith("/anthropic"):
+        return url + "/v1/messages"
+
+    # Has neither /anthropic nor /v1/messages — append both
+    return url + "/anthropic/v1/messages"
+
+
+def _api_url_host(raw_url):
     try:
-        return urlparse(settings.XIAOMI_MIMO_API_URL).hostname or ""
+        return urlparse(raw_url).hostname or ""
     except Exception:
         return ""
 
@@ -226,21 +264,39 @@ def _mask_key(key):
     return key[:4] + "****" + key[-4:]
 
 
-def call_mimo_api(api_url, api_key, model, timeout, system_prompt, user_message):
+# ---------------------------------------------------------------------------
+# MiMo API call
+# ---------------------------------------------------------------------------
+
+def call_mimo_api(full_url, api_key, model, timeout, system_prompt, user_message):
+    """Call MiMo Anthropic-compatible Messages API.
+
+    full_url should already be normalized via normalize_mimo_anthropic_url().
+    """
     payload = json.dumps({
         "model": model,
         "max_tokens": 1024,
         "system": system_prompt,
-        "messages": [{"role": "user", "content": user_message}],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_message},
+                ],
+            }
+        ],
+        "stream": False,
+        "temperature": 0.7,
     }).encode("utf-8")
 
     req = urllib.request.Request(
-        api_url,
+        full_url,
         data=payload,
         headers={
             "Content-Type": "application/json",
+            "api-key": api_key,
             "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
+            "Authorization": f"Bearer {api_key}",
         },
         method="POST",
     )
@@ -256,7 +312,12 @@ def call_mimo_api(api_url, api_key, model, timeout, system_prompt, user_message)
         error_summary = body[:300]
         try:
             error_data = json.loads(body)
-            error_summary = error_data.get("error", {}).get("message", "") or error_data.get("detail", "") or error_data.get("message", "") or body[:300]
+            error_summary = (
+                error_data.get("error", {}).get("message", "")
+                or error_data.get("detail", "")
+                or error_data.get("message", "")
+                or body[:300]
+            )
         except (ValueError, TypeError, KeyError, AttributeError):
             pass
         return resp_status, body, error_summary
@@ -276,14 +337,17 @@ def parse_ai_reply(body):
         return body[:2000]
 
     reply = ""
+    # Anthropic format: content[{type:"text", text:"..."}]
     if isinstance(data.get("content"), list):
         reply = "".join(
             block.get("text", "")
             for block in data["content"]
             if block.get("type") == "text"
         )
+    # Anthropic flat string
     elif isinstance(data.get("content"), str):
         reply = data["content"]
+    # OpenAI-compatible format: choices[0].message.content
     elif isinstance(data.get("choices"), list) and data["choices"]:
         choice = data["choices"][0]
         if isinstance(choice.get("message"), dict):
@@ -301,10 +365,10 @@ def _debug_fallback_enabled():
 
 def call_ai_api(system_prompt, user_message):
     api_key = settings.XIAOMI_MIMO_API_KEY
-    api_url = settings.XIAOMI_MIMO_API_URL
+    raw_url = settings.XIAOMI_MIMO_API_URL
     model = settings.XIAOMI_MIMO_MODEL
     timeout = settings.XIAOMI_MIMO_TIMEOUT
-    url_host = _api_url_host()
+    url_host = _api_url_host(raw_url)
 
     if not api_key or api_key == "your-api-key-here":
         logger.warning("AI API key not configured (XIAOMI_MIMO_API_KEY)")
@@ -313,12 +377,19 @@ def call_ai_api(system_prompt, user_message):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    full_url = normalize_mimo_anthropic_url(raw_url)
+    if not full_url:
+        return Response(
+            {"error": "AI服务URL未配置，请在backend/.env中配置XIAOMI_MIMO_API_URL", "reply": ""},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     try:
         resp_status, body, upstream_error = call_mimo_api(
-            api_url, api_key, model, timeout, system_prompt, user_message
+            full_url, api_key, model, timeout, system_prompt, user_message
         )
     except TimeoutError as exc:
-        logger.error("AI API timeout (%ss): %s", timeout, exc)
+        logger.error("AI API timeout (%ss) to %s: %s", timeout, full_url, exc)
         if _debug_fallback_enabled():
             return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务超时"})
         return Response(
@@ -326,7 +397,7 @@ def call_ai_api(system_prompt, user_message):
             status=status.HTTP_502_BAD_GATEWAY,
         )
     except ConnectionError as exc:
-        logger.error("AI API connection failed to %s: %s", url_host, exc)
+        logger.error("AI API connection failed to %s: %s", full_url, exc)
         if _debug_fallback_enabled():
             return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务连接失败"})
         return Response(
@@ -344,8 +415,9 @@ def call_ai_api(system_prompt, user_message):
 
     if resp_status != 200:
         logger.error(
-            "AI API returned HTTP %d from %s (model=%s, key=%s): %s",
-            resp_status, url_host, model, _mask_key(api_key), upstream_error[:200] if upstream_error else body[:200],
+            "AI upstream HTTP %d, url=%s, model=%s, key=%s: %s",
+            resp_status, full_url, model, _mask_key(api_key),
+            (upstream_error or body[:200]),
         )
         if _debug_fallback_enabled():
             return Response({"reply": DEBUG_FALLBACK_REPLY, "error": f"AI服务返回HTTP {resp_status}"})
@@ -358,7 +430,7 @@ def call_ai_api(system_prompt, user_message):
         elif resp_status == 403:
             error_msg = "AI服务拒绝访问，请检查APIKey权限"
         elif resp_status == 404:
-            error_msg = f"AI服务接口不存在，请检查XIAOMI_MIMO_API_URL(当前：{url_host})"
+            error_msg = f"AI服务接口不存在(404)，请求地址：{full_url}"
         elif resp_status == 429:
             error_msg = "AI服务请求频率超限，请稍后重试"
         elif resp_status >= 500:
@@ -371,7 +443,7 @@ def call_ai_api(system_prompt, user_message):
 
     reply = parse_ai_reply(body)
     if not reply:
-        logger.warning("AI API returned 200 but empty reply, body: %s", body[:300])
+        logger.warning("AI API returned 200 but empty reply from %s, body: %s", full_url, body[:300])
         if _debug_fallback_enabled():
             return Response({"reply": DEBUG_FALLBACK_REPLY, "error": "AI服务返回空内容"})
         return Response(
@@ -382,17 +454,23 @@ def call_ai_api(system_prompt, user_message):
     return Response({"reply": reply})
 
 
+# ---------------------------------------------------------------------------
+# Views
+# ---------------------------------------------------------------------------
+
 class AiHealthView(APIView):
     permission_classes = []
 
     def get(self, request):
         api_key = settings.XIAOMI_MIMO_API_KEY
+        raw_url = settings.XIAOMI_MIMO_API_URL
         configured = bool(api_key and api_key != "your-api-key-here")
         return Response({
             "configured": configured,
             "model": settings.XIAOMI_MIMO_MODEL,
             "provider": "xiaomi-mimo",
-            "url_host": _api_url_host(),
+            "url_host": _api_url_host(raw_url),
+            "normalized_url": normalize_mimo_anthropic_url(raw_url) if configured else "",
             "debug_fallback": _debug_fallback_enabled(),
         })
 

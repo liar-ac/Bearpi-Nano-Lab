@@ -227,7 +227,7 @@ REALTIME_GROUP_NAME = os.getenv("REALTIME_GROUP_NAME", "realtime")
 # 必须在 .env 中配置 XIAOMI_MIMO_API_KEY 才能使用 AI 功能
 XIAOMI_MIMO_API_URL = os.getenv("XIAOMI_MIMO_API_URL", "https://token-plan-cn.xiaomimimo.com/anthropic")
 XIAOMI_MIMO_API_KEY = os.getenv("XIAOMI_MIMO_API_KEY", "")
-XIAOMI_MIMO_MODEL = os.getenv("XIAOMI_MIMO_MODEL", "claude-3-5-sonnet-20241022")
+XIAOMI_MIMO_MODEL = os.getenv("XIAOMI_MIMO_MODEL", "mimo-v2.5-pro")
 XIAOMI_MIMO_TIMEOUT = int(os.getenv("XIAOMI_MIMO_TIMEOUT", "30"))
 AI_ENABLE_DEBUG_FALLBACK = os.getenv("AI_ENABLE_DEBUG_FALLBACK", "false").lower() == "true"
 
