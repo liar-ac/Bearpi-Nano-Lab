@@ -127,12 +127,13 @@ const sourceType = computed(() => {
 }
 
 .source-tag {
-  margin-top: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
   display: inline-block;
+  opacity: 0.6;
 }
 
 .source-warning {
