@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
+import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiQuery } from '@/api/lab';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  dataSource?: string;
   diagnostic?: Record<string, unknown> | null;
 }
 
@@ -33,10 +35,16 @@ async function send() {
   await nextTick();
 
   try {
-    const result = await sendAiQuery(question) as { reply: string; error?: string; diagnostic?: Record<string, unknown> };
+    const result = await sendAiQuery(question) as {
+      reply: string;
+      error?: string;
+      data_source?: string;
+      diagnostic?: Record<string, unknown>;
+    };
     messages.value.push({
       role: 'assistant',
       content: result.reply,
+      dataSource: result.data_source,
       diagnostic: result.diagnostic ?? null,
     });
   } catch (cause) {
@@ -105,11 +113,16 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
           :class="['chat-message', msg.role]"
         >
           <view class="message-bubble">
-            <text selectable>{{ msg.content }}</text>
-            <view v-if="msg.diagnostic" class="diagnostic-box">
-              <text class="diagnostic-title">调试信息</text>
-              <text class="diagnostic-text">{{ formatDiagnostic(msg.diagnostic) }}</text>
-            </view>
+            <template v-if="msg.role === 'user'">
+              <text selectable>{{ msg.content }}</text>
+            </template>
+            <template v-else>
+              <MarkdownMessage :content="msg.content" :data-source="msg.dataSource" />
+              <view v-if="msg.diagnostic" class="diagnostic-box">
+                <text class="diagnostic-title">调试信息</text>
+                <text class="diagnostic-text">{{ formatDiagnostic(msg.diagnostic) }}</text>
+              </view>
+            </template>
           </view>
         </view>
 
@@ -147,12 +160,10 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
   height: 70vh;
 }
 
-.ai-query-title {
-  text {
-    color: #172033;
-    font-size: 32rpx;
-    font-weight: 800;
-  }
+.ai-query-title text {
+  color: #172033;
+  font-size: 32rpx;
+  font-weight: 800;
 }
 
 .chat-body {
@@ -194,30 +205,33 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
   line-height: 1.6;
 }
 
-.message-bubble text {
-  font-size: 26rpx;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
 .chat-message.user .message-bubble {
   background: $uni-color-primary;
   border-bottom-right-radius: 4rpx;
-  text { color: #ffffff; }
+
+  text {
+    color: #ffffff;
+    font-size: 26rpx;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
 }
 
 .chat-message.assistant .message-bubble {
   background: #f0f2f5;
   border: 1rpx solid $uni-border-color;
   border-bottom-left-radius: 4rpx;
-  text { color: #172033; }
 }
 
 .loading-bubble {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  text { color: $uni-text-color-grey; font-size: 24rpx; }
+
+  text {
+    color: $uni-text-color-grey;
+    font-size: 24rpx;
+  }
 }
 
 .diagnostic-box {

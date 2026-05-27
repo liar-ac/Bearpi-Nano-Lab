@@ -3,6 +3,7 @@ import { RefreshCcw, Save, SlidersHorizontal, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { computed, onMounted, reactive, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
+import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { fetchRules, sendAiChat, updateRule } from '@/api/lab';
 import { useAuthStore } from '@/stores/auth';
 import type { RuleConfig } from '@/types/domain';
@@ -119,15 +120,18 @@ const aiVisible = ref(false);
 const aiLoading = ref(false);
 const aiReply = ref('');
 const aiError = ref('');
+const aiDataSource = ref('');
 
 async function runAiSuggestion() {
   aiVisible.value = true;
   aiLoading.value = true;
   aiReply.value = '';
   aiError.value = '';
+  aiDataSource.value = '';
   try {
-    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext());
+    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext()) as { reply: string; data_source?: string };
     aiReply.value = result.reply;
+    aiDataSource.value = result.data_source ?? '';
   } catch (cause) {
     aiError.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
     ElMessage.error(aiError.value);
@@ -266,7 +270,7 @@ onMounted(load);
         <p>{{ aiError }}</p>
       </div>
       <div v-else-if="aiReply" class="ai-reply">
-        <pre>{{ aiReply }}</pre>
+        <MarkdownMessage :content="aiReply" :data-source="aiDataSource" />
       </div>
       <template #footer>
         <el-button @click="closeAiDialog">关闭</el-button>

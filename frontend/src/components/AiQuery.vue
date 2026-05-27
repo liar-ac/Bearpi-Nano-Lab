@@ -2,11 +2,13 @@
 import { ChatLineSquare, Loading, Promotion } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { computed, nextTick, ref } from 'vue';
+import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiQuery } from '@/api/lab';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  dataSource?: string;
   diagnostic?: Record<string, unknown> | null;
 }
 
@@ -37,10 +39,17 @@ async function send() {
   scrollToBottom();
 
   try {
-    const result = await sendAiQuery(question) as { reply: string; error?: string; diagnostic?: Record<string, unknown> };
+    const result = await sendAiQuery(question) as {
+      reply: string;
+      error?: string;
+      format?: string;
+      data_source?: string;
+      diagnostic?: Record<string, unknown>;
+    };
     messages.value.push({
       role: 'assistant',
       content: result.reply,
+      dataSource: result.data_source,
       diagnostic: result.diagnostic ?? null,
     });
   } catch (cause) {
@@ -110,11 +119,16 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 
         <div v-for="(msg, index) in messages" :key="index" :class="['chat-message', msg.role]">
           <div class="message-bubble">
-            <pre>{{ msg.content }}</pre>
-            <details v-if="msg.diagnostic" class="diagnostic-details">
-              <summary>开发调试信息</summary>
-              <pre class="diagnostic-pre">{{ formatDiagnostic(msg.diagnostic) }}</pre>
-            </details>
+            <template v-if="msg.role === 'user'">
+              <pre>{{ msg.content }}</pre>
+            </template>
+            <template v-else>
+              <MarkdownMessage :content="msg.content" :data-source="msg.dataSource" />
+              <details v-if="msg.diagnostic" class="diagnostic-details">
+                <summary>开发调试信息</summary>
+                <pre class="diagnostic-pre">{{ formatDiagnostic(msg.diagnostic) }}</pre>
+              </details>
+            </template>
           </div>
         </div>
 

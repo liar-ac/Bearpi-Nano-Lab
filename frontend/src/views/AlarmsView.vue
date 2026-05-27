@@ -3,6 +3,7 @@ import { CheckCircle2, Filter, RefreshCcw, Sparkles, Siren } from 'lucide-vue-ne
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
+import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { ackAlarm, fetchAlarms, sendAiChat } from '@/api/lab';
 import { subscribeAlarmEvents } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
@@ -45,20 +46,23 @@ const aiLoading = ref(false);
 const aiReply = ref('');
 const aiError = ref('');
 const aiAlarmName = ref('');
+const aiDataSource = ref('');
 
 async function diagnoseAlarm(alarm: Alarm) {
   aiVisible.value = true;
   aiLoading.value = true;
   aiReply.value = '';
   aiError.value = '';
+  aiDataSource.value = '';
   aiAlarmName.value = alarm.deviceName;
   try {
     const context = {
       alarm: { level: alarm.level, message: alarm.message, ts: alarm.ts, status: alarm.status },
       device: { sn: alarm.deviceName },
     };
-    const result = await sendAiChat('alarm_diagnosis', context);
+    const result = await sendAiChat('alarm_diagnosis', context) as { reply: string; data_source?: string };
     aiReply.value = result.reply;
+    aiDataSource.value = result.data_source ?? '';
   } catch (cause) {
     aiError.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
     ElMessage.error(aiError.value);
@@ -266,7 +270,7 @@ function statusTagType(status: AlarmStatus) {
         <p>{{ aiError }}</p>
       </div>
       <div v-else-if="aiReply" class="ai-reply">
-        <pre>{{ aiReply }}</pre>
+        <MarkdownMessage :content="aiReply" :data-source="aiDataSource" />
       </div>
       <template #footer>
         <el-button @click="closeAiDialog">关闭</el-button>

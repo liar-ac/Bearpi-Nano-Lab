@@ -124,10 +124,31 @@ CONTEXT_BUILDERS = {
 }
 
 
+def _detect_data_source():
+    """Detect whether current device data comes from live boards or demo seed."""
+    from apps.telemetry.models import RawPoint
+    devices = Device.objects.all()
+    if not devices.count():
+        return "empty"
+    # If any device has recent raw points within last 2 minutes, it's live
+    recent_cutoff = timezone.now() - timedelta(seconds=120)
+    has_live = RawPoint.objects.filter(ts__gte=recent_cutoff).exists()
+    if has_live:
+        return "live"
+    return "demo"
+
+
 def gather_lab_context():
     now = timezone.now()
     cutoff = now - timedelta(seconds=settings.DEVICE_ACTIVE_TTL_SECONDS)
+    data_source = _detect_data_source()
+
     parts = []
+    if data_source == "demo":
+        parts.append("## 数据来源说明\n- 当前数据来自演示/历史数据库记录,并非实时开发板上报")
+    elif data_source == "empty":
+        parts.append("## 数据来源说明\n- 当前没有任何设备接入,数据库为空")
+
     devices = list(Device.objects.select_related("cloud").prefetch_related("sensors").order_by("slot_no"))
     if devices:
         online = sum(1 for d in devices if d.status == "online")
@@ -382,7 +403,7 @@ def call_ai_api(system_prompt, user_message):
             return _fallback_response("AI服务返回空内容", diag)
         return Response({"error": "AI服务返回内容为空，请检查XIAOMI_MIMO_MODEL是否正确", "reply": "", "diagnostic": diag}, status=status.HTTP_502_BAD_GATEWAY)
 
-    return Response({"reply": reply})
+    return Response({"reply": reply, "format": "markdown", "data_source": _detect_data_source()})
 
 
 # ---------------------------------------------------------------------------
