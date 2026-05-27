@@ -24,7 +24,6 @@ const sourceLabel = computed(() => {
   switch (props.dataSource) {
     case 'demo': return '数据来源：演示数据库';
     case 'live': return '数据来源：实时开发板';
-    case 'empty': return '当前无设备接入';
     default: return '';
   }
 });
@@ -33,7 +32,6 @@ const sourceType = computed(() => {
   switch (props.dataSource) {
     case 'demo': return 'warning';
     case 'live': return 'success';
-    case 'empty': return 'info';
     default: return '';
   }
 });
