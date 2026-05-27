@@ -141,29 +141,29 @@ def gather_lab_context():
     data_source = _detect_data_source()
 
     parts = []
-    if data_source == "demo":
-        parts.append("## 数据来源说明\n- 当前数据来自演示/历史数据库记录,并非实时开发板上报")
-    elif data_source == "empty":
-        parts.append("## 数据来源说明\n- 当前没有任何设备接入,数据库为空")
 
     devices = list(Device.objects.select_related("cloud").prefetch_related("sensors").order_by("slot_no"))
-    if devices:
-        online = sum(1 for d in devices if d.status == "online")
-        warning = sum(1 for d in devices if d.status == "warning")
-        offline = sum(1 for d in devices if d.status == "offline")
-        parts.append(f"## 实验室概况\n- 总设备数: {len(devices)}\n- 在线: {online}, 异常: {warning}, 离线: {offline}")
-    else:
-        parts.append("## 实验室概况\n- 当前没有任何设备接入,数据库为空,无设备数据可查")
-        device_lines = []
-        for d in devices[:40]:
-            active = "活跃" if d.last_seen and d.last_seen >= cutoff else "不活跃"
-            sensors = []
-            for s in d.sensors.all():
-                if s.latest_value is not None:
-                    sensors.append(f"{s.name}={s.latest_value}{s.unit}")
-            sensor_str = ", ".join(sensors[:6]) if sensors else "无数据"
-            device_lines.append(f"- 槽位{d.slot_no} {d.sn} [{d.status}/{active}] 成员={d.member} 位置={d.location} 传感器: {sensor_str}")
-        parts.append("## 设备列表(前40台)\n" + "\n".join(device_lines))
+    if not devices:
+        return "", data_source
+
+    if data_source == "demo":
+        parts.append("## 数据来源说明\n- 当前数据来自演示/历史数据库记录,并非实时开发板上报")
+
+    online = sum(1 for d in devices if d.status == "online")
+    warning = sum(1 for d in devices if d.status == "warning")
+    offline = sum(1 for d in devices if d.status == "offline")
+    parts.append(f"## 实验室概况\n- 总设备数: {len(devices)}\n- 在线: {online}, 异常: {warning}, 离线: {offline}")
+
+    device_lines = []
+    for d in devices[:40]:
+        active = "活跃" if d.last_seen and d.last_seen >= cutoff else "不活跃"
+        sensors = []
+        for s in d.sensors.all():
+            if s.latest_value is not None:
+                sensors.append(f"{s.name}={s.latest_value}{s.unit}")
+        sensor_str = ", ".join(sensors[:6]) if sensors else "无数据"
+        device_lines.append(f"- 槽位{d.slot_no} {d.sn} [{d.status}/{active}] 成员={d.member} 位置={d.location} 传感器: {sensor_str}")
+    parts.append("## 设备列表(前40台)\n" + "\n".join(device_lines))
     recent_alarms = list(Alarm.objects.select_related("device").order_by("-ts")[:10])
     if recent_alarms:
         alarm_lines = [f"- [{a.level}] {a.device.sn}: {a.message} ({a.ts.strftime('%m-%d %H:%M')})" for a in recent_alarms]
@@ -172,7 +172,7 @@ def gather_lab_context():
     if rules:
         rule_lines = [f"- {r.device.sn}/{r.name}: min={r.min_value} max={r.max_value} 当前={r.latest_value}{r.unit}" for r in rules]
         parts.append("## 阈值规则\n" + "\n".join(rule_lines))
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), data_source
 
 
 # ---------------------------------------------------------------------------
@@ -524,8 +524,10 @@ class AiQueryView(APIView):
             raise ValidationError({"question": "请输入问题"})
         if len(question) > 500:
             raise ValidationError({"question": "问题长度不能超过500字"})
-        lab_context = gather_lab_context()
-        user_message = f"## 用户问题\n{question}\n\n{lab_context}"
+        lab_context, _data_source = gather_lab_context()
+        user_message = f"## 用户问题\n{question}"
+        if lab_context:
+            user_message += f"\n\n{lab_context}"
         result = call_ai_api(SYSTEM_PROMPTS["data_query"], user_message)
         if isinstance(result, Response) and result.status_code != 200:
             return result
