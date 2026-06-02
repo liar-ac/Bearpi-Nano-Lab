@@ -87,6 +87,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django.middleware.gzip.GZipMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -142,6 +143,7 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+            "CONN_MAX_AGE": 60,
         }
     }
 
@@ -159,6 +161,14 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "bearpi-lab-cache",
+        "TIMEOUT": 30,
+    }
+}
 
 CORS_ALLOWED_ORIGINS = csv_env(
     "CORS_ALLOWED_ORIGINS",
@@ -220,14 +230,14 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
-        "auth_login": os.getenv("THROTTLE_AUTH_LOGIN", "20/min"),
-        "auth_register": os.getenv("THROTTLE_AUTH_REGISTER", "10/min"),
-        "auth_refresh": os.getenv("THROTTLE_AUTH_REFRESH", "60/min"),
+        "auth_login": os.getenv("THROTTLE_AUTH_LOGIN", "5/min"),
+        "auth_register": os.getenv("THROTTLE_AUTH_REGISTER", "3/min"),
+        "auth_refresh": os.getenv("THROTTLE_AUTH_REFRESH", "30/min"),
     },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }

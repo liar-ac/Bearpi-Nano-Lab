@@ -216,12 +216,6 @@ function parseEnvelope(raw: string | ArrayBuffer): ParsedEnvelope | null {
   }
 }
 
-function normalizeRealtimeMessage(raw: string | ArrayBuffer): RealtimeMessage | null {
-  const env = parseEnvelope(raw);
-  return env?.kind === 'sensor' ? env.payload : null;
-}
-void normalizeRealtimeMessage;
-
 export function reconnectRealtime() {
   // 登录成功 / token 刷新后主动重连
   if (USE_MOCK) {

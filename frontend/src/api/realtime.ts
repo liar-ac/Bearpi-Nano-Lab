@@ -222,12 +222,6 @@ function parseEnvelope(raw: string): ParsedEnvelope | null {
   }
 }
 
-function normalizeRealtimeMessage(_raw: string): RealtimeMessage | null {
-  // 兼容旧代码引用，已被 parseEnvelope 接管
-  return null;
-}
-void normalizeRealtimeMessage;
-
 export function reconnectRealtime() {
   if (USE_MOCK) {
     ensureRealtimeConnection();
