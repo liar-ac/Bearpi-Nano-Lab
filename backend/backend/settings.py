@@ -26,6 +26,13 @@ load_local_env(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-bearpi-nano-lab-dev")
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
+
+# 生产环境必须替换默认SECRET_KEY
+if not DEBUG and SECRET_KEY.startswith("django-insecure"):
+    raise SystemExit(
+        "FATAL: DJANGO_SECRET_KEY is still the default insecure value. "
+        "Set a real secret in backend/.env before running in production."
+    )
 ALLOWED_HOSTS = csv_env(
     "DJANGO_ALLOWED_HOSTS",
     "127.0.0.1,localhost,10.212.180.213,10.211.2.200,10.211.141.163,10.211.39.29,10.211.110.10,10.190.212.175,192.168.137.1,192.168.43.1,192.168.1.1",
@@ -230,6 +237,10 @@ XIAOMI_MIMO_API_KEY = os.getenv("XIAOMI_MIMO_API_KEY", "")
 XIAOMI_MIMO_MODEL = os.getenv("XIAOMI_MIMO_MODEL", "mimo-v2.5-pro")
 XIAOMI_MIMO_TIMEOUT = int(os.getenv("XIAOMI_MIMO_TIMEOUT", "30"))
 AI_ENABLE_DEBUG_FALLBACK = os.getenv("AI_ENABLE_DEBUG_FALLBACK", "false").lower() == "true"
+AI_RATE_LIMIT_PER_MINUTE = int(os.getenv("AI_RATE_LIMIT_PER_MINUTE", "10"))
+
+# 时序数据保留天数，超过此天数的原始采样点会被清理
+RAWPOINT_RETENTION_DAYS = int(os.getenv("RAWPOINT_RETENTION_DAYS", "7"))
 
 # 生产环境兜底警告：仍在使用默认弱凭据时给出明确告警
 if not DEBUG:

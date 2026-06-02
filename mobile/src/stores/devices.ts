@@ -82,10 +82,11 @@ export const useDeviceStore = defineStore('devices', () => {
       return;
     }
 
-    devices.value = devices.value.map((device) => {
-      if (device.id !== message.deviceId) return device;
+    const index = devices.value.findIndex((d) => d.id === message.deviceId);
+    if (index >= 0) {
+      const device = devices.value[index];
       const newStatus = message.status ?? device.status;
-      return {
+      const updated = {
         ...device,
         status: newStatus,
         lastSeen: message.ts,
@@ -96,7 +97,10 @@ export const useDeviceStore = defineStore('devices', () => {
             : sensor
         )
       };
-    });
+      const next = devices.value.slice();
+      next[index] = updated;
+      devices.value = next;
+    }
   }
 
   return {

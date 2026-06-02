@@ -97,7 +97,7 @@ const option = computed(() => ({
 function render() {
   if (!chartRef.value) return;
   if (!chart) chart = init(chartRef.value);
-  chart.setOption(option.value, true);
+  chart.setOption(option.value);
 }
 
 function resize() {

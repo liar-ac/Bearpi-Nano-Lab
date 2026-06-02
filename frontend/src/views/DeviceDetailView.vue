@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Fan, Gauge, History, Lightbulb, Power, RefreshCcw, Settings, ShieldCheck, Zap } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { fetchCommands, fetchDevice, sendCommand } from '@/api/lab';
@@ -221,7 +221,22 @@ async function setActuatorOverride(key: OverrideKey, mode: OverrideMode) {
   }
 }
 
-onMounted(load);
+let refreshTimer: number | null = null;
+
+onMounted(() => {
+  void load();
+  refreshTimer = window.setInterval(() => {
+    void load();
+  }, 10000);
+});
+
+onBeforeUnmount(() => {
+  if (refreshTimer !== null) {
+    window.clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+});
+
 watch(deviceId, () => {
   void load();
 });

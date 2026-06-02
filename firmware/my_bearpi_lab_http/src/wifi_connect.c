@@ -197,7 +197,7 @@ static void OnWifiScanStateChangedHandler(int state, int size)
 {
     if (size > 0)
     {
-        ssid_count = size;
+        ssid_count = size < WIFI_SCAN_HOTSPOT_LIMIT ? size : WIFI_SCAN_HOTSPOT_LIMIT;
         g_staScanSuccess = 1;
     }
     printf("callback function for wifi scan:%d, %d\r\n", state, size);

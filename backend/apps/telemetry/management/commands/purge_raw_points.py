@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -10,15 +11,17 @@ from apps.telemetry.models import RawPoint
 class Command(BaseCommand):
     help = (
         "按时间清理 RawPoint 历史采样点，避免单张表无限增长。"
-        "默认保留最近 90 天，可用 --days/--batch-size 调整。"
+        "默认保留天数由 RAWPOINT_RETENTION_DAYS 配置（默认 7 天），"
+        "可用 --days/--batch-size 调整。"
     )
 
     def add_arguments(self, parser):
+        default_days = getattr(settings, "RAWPOINT_RETENTION_DAYS", 7)
         parser.add_argument(
             "--days",
             type=int,
-            default=90,
-            help="保留天数，早于该窗口的采样点将被删除（默认 90 天）。",
+            default=default_days,
+            help=f"保留天数，早于该窗口的采样点将被删除（默认 {default_days} 天）。",
         )
         parser.add_argument(
             "--batch-size",
