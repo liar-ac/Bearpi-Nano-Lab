@@ -4,6 +4,7 @@ import random
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -15,6 +16,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 
 from apps.alarms.models import Alarm
+from apps.cloud.models import CloudDeviceStatus
 from apps.common.device_gateway import resolve_or_register_device, valid_device_token
 from apps.devices.models import Device, Sensor
 from apps.telemetry.models import RawPoint
@@ -88,14 +90,58 @@ class TelemetryIngestView(APIView):
         points = append_ia1_control_points(device, points)
 
         published = []
+        # Batch: pre-fetch all sensors in one query
+        codes = [item["sensor_code"] for item in points]
+        sensor_map = {
+            s.code: s
+            for s in Sensor.objects.select_related("device").filter(device=device, code__in=codes)
+        }
+        ts = points[0]["ts"]
+        raw_points = []
+        update_sensors = []
         for item in points:
-            sensor = Sensor.objects.select_related("device").filter(
-                device=device,
-                code=item["sensor_code"],
-            ).first()
+            sensor = sensor_map.get(item["sensor_code"])
             if sensor is None:
                 raise ValidationError({"sensor_code": f"sensor {item['sensor_code']} does not exist on {device.sn}"})
-            published.append(persist_and_publish(sensor, item["value"], item["ts"]))
+            raw_points.append(RawPoint(device=device, sensor=sensor, ts=ts, value=item["value"]))
+            sensor.latest_ts = ts
+            sensor.latest_value = item["value"]
+            update_sensors.append(sensor)
+
+        with transaction.atomic():
+            RawPoint.objects.bulk_create(raw_points)
+            Sensor.objects.bulk_update(update_sensors, ["latest_ts", "latest_value"])
+            for item in points:
+                sensor = sensor_map[item["sensor_code"]]
+                alarm = record_threshold_alarm(sensor, item["value"], ts)
+                payload = {
+                    "deviceId": device.id, "sensorId": sensor.id, "code": sensor.code,
+                    "name": sensor.name, "unit": sensor.unit,
+                    "value": item["value"], "ts": ts.isoformat(), "status": device.status,
+                }
+                published.append(payload)
+
+            has_open_alarm = Alarm.objects.filter(device=device, status=Alarm.Status.NEW).exists()
+            if device.status != Device.Status.MAINTENANCE:
+                device.status = Device.Status.WARNING if has_open_alarm else Device.Status.ONLINE
+                device.abnormal_reason = ""
+            device.last_seen = ts
+            device.save(update_fields=["status", "last_seen", "abnormal_reason"])
+
+            cloud = getattr(device, "cloud", None)
+            if cloud:
+                cloud.mqtt_status = CloudDeviceStatus.MqttStatus.CONNECTED
+                cloud.sync_status = CloudDeviceStatus.SyncStatus.SYNCED
+                cloud.last_sync = ts
+                cloud.shadow_version += 1
+                cloud.save(update_fields=["mqtt_status", "sync_status", "last_sync", "shadow_version"])
+
+        # Publish WebSocket after transaction
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            group_name = getattr(settings, "REALTIME_GROUP_NAME", "realtime")
+            for payload in published:
+                async_to_sync(channel_layer.group_send)(group_name, {"type": "sensor.point", "payload": payload})
 
         return Response({"accepted": len(published), "points": published}, status=status.HTTP_201_CREATED)
 
