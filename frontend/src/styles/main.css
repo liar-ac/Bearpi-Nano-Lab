@@ -51,10 +51,18 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Viewport-responsive root font-size: scales UI proportionally across resolutions.
+     1280px → ~13.2px | 1440px → ~13.6px | 1920px → ~14.8px | 2560px → ~16.4px */
+  font-size: calc(10px + 0.25vw);
+}
+
 html,
 body,
 #app {
   scrollbar-gutter: stable;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 body {
@@ -239,8 +247,8 @@ button:disabled {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px 18px;
+  gap: clamp(12px, 1vw, 18px);
+  padding: clamp(14px, 1.2vw, 20px) clamp(12px, 1vw, 18px);
   border-right: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(16, 26, 36, 0.98), rgba(9, 15, 21, 0.98));
   box-shadow: 1px 0 0 rgba(255, 255, 255, 0.025) inset;
@@ -338,9 +346,9 @@ button:disabled {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 0 12px;
+  gap: clamp(7px, 0.6vw, 10px);
+  min-height: clamp(34px, 2.5vw, 40px);
+  padding: 0 clamp(8px, 0.7vw, 12px);
   border: 1px solid transparent;
   border-radius: var(--radius);
   color: var(--text-muted);
@@ -425,9 +433,9 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  min-height: 68px;
-  padding: 14px 24px;
+  gap: clamp(12px, 1vw, 18px);
+  min-height: clamp(56px, 4vw, 68px);
+  padding: clamp(10px, 0.8vw, 14px) clamp(16px, 1.5vw, 24px);
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(16, 26, 35, 0.94), rgba(9, 15, 21, 0.88));
   backdrop-filter: blur(18px);
@@ -585,7 +593,7 @@ button:disabled {
 .page-content {
   width: min(1440px, 100%);
   margin: 0 auto;
-  padding: 22px 24px 30px;
+  padding: clamp(14px, 1.5vw, 22px) clamp(16px, 1.8vw, 24px) clamp(20px, 2vw, 30px);
   animation: panelRise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -627,9 +635,9 @@ button:disabled {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 104px;
-  padding: 16px;
+  gap: clamp(10px, 0.8vw, 14px);
+  min-height: clamp(80px, 6vw, 104px);
+  padding: clamp(12px, 1vw, 16px);
   background:
     linear-gradient(135deg, rgba(56, 189, 248, 0.045), transparent 46%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
@@ -678,7 +686,7 @@ button:disabled {
 .metric-card strong {
   display: block;
   margin: 6px 0;
-  font-size: 27px;
+  font-size: clamp(20px, 1.6vw, 27px);
   line-height: 1;
   color: #f7fcff;
   text-shadow: 0 0 18px rgba(56, 189, 248, 0.12);
@@ -1729,7 +1737,7 @@ select {
   position: relative;
   justify-self: end;
     width: min(100%, 680px);
-    padding: 56px;
+    padding: clamp(28px, 3.5vw, 56px);
     border-color: rgba(188, 238, 255, 0.4);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018)),
@@ -1763,8 +1771,8 @@ select {
 .login-brand span {
   display: grid;
   place-items: center;
-  width: 90px;
-  height: 90px;
+  width: clamp(60px, 5.5vw, 90px);
+  height: clamp(60px, 5.5vw, 90px);
   border-radius: var(--radius);
   background: linear-gradient(135deg, rgba(45, 212, 125, 0.22), rgba(56, 189, 248, 0.16));
   color: var(--green);
@@ -1792,7 +1800,7 @@ select {
 .login-brand h1,
 .login-brand h2 {
   margin-top: 6px;
-  font-size: 46px;
+  font-size: clamp(28px, 2.8vw, 46px);
   line-height: 1.12;
   letter-spacing: 0;
 }
@@ -1865,8 +1873,8 @@ select {
 }
 
 .login-panel .el-input__wrapper {
-  min-height: 64px;
-  padding: 0 18px;
+  min-height: clamp(48px, 3.5vw, 64px);
+  padding: 0 clamp(12px, 1vw, 18px);
   background: rgba(5, 12, 18, 0.64);
   border: 1px solid rgba(188, 238, 255, 0.13);
   box-shadow: none;
@@ -1884,9 +1892,9 @@ select {
 }
 
 .login-panel .el-input__inner {
-  height: 58px;
+  height: clamp(44px, 3.2vw, 58px);
   color: var(--text);
-  font-size: 18px;
+  font-size: clamp(15px, 1.1vw, 18px);
 }
 
 .login-panel .el-input__suffix svg {
@@ -1900,9 +1908,9 @@ select {
 }
 
 .login-panel .el-button.full-button {
-  min-height: 68px;
+  min-height: clamp(50px, 3.8vw, 68px);
   margin-top: 6px;
-  font-size: 19px;
+  font-size: clamp(16px, 1.2vw, 19px);
   font-weight: 800;
   background: linear-gradient(90deg, #2dd47d, #38bdf8);
   border-color: transparent;
@@ -2004,6 +2012,10 @@ select {
 }
 
 @media (max-width: 960px) {
+  html {
+    font-size: calc(9.5px + 0.2vw);
+  }
+
   .app-layout {
     grid-template-columns: 1fr;
   }
@@ -2102,6 +2114,10 @@ select {
 }
 
 @media (max-width: 760px) {
+  html {
+    font-size: calc(9px + 0.15vw);
+  }
+
   .page-content,
   .topbar,
   .sidebar {
@@ -2201,6 +2217,10 @@ select {
 }
 
 @media (max-width: 480px) {
+  html {
+    font-size: calc(8.5px + 0.12vw);
+  }
+
   html,
   body {
     overflow-x: hidden;
@@ -2443,5 +2463,84 @@ select {
   .login-panel .el-button.full-button {
     min-height: 50px;
     font-size: 16px;
+  }
+}
+
+/* Large screen scaling: cap root font-size to prevent oversized UI */
+@media (min-width: 1920px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 2560px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Dialog and Drawer responsive scaling */
+.el-dialog {
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.el-dialog__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.el-drawer {
+  max-width: 95vw;
+}
+
+.el-drawer__body {
+  overflow-y: auto;
+}
+
+/* Ensure all tables scroll horizontally on narrow screens */
+.el-table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* ElementPlus form items responsive */
+.el-form-item {
+  margin-bottom: 18px;
+}
+
+.el-form-item__label {
+  padding-bottom: 6px;
+}
+
+/* Make el-segmented wrap on narrow screens */
+.el-segmented {
+  flex-wrap: wrap;
+}
+
+/* Ensure popups don't overflow viewport */
+.el-popover.el-popper {
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Topbar responsive adjustments */
+@media (max-width: 1200px) {
+  .topbar {
+    padding: 12px 18px;
+    gap: 12px;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .realtime-chip,
+  .user-chip {
+    font-size: 12px;
   }
 }
