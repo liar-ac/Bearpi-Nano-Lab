@@ -159,14 +159,16 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
           placeholder="输入你的问题,比如:哪块板功耗最高?"
           :disabled="loading"
           @keyup.enter="send"
+        />
+        <button
+          class="send-btn"
+          :disabled="!canSend"
+          @click="send"
         >
-          <template #append>
-            <el-button :disabled="!canSend" @click="send">
-              <Promotion :size="16" />
-            </el-button>
-          </template>
-        </el-input>
-        <el-button v-if="messages.length" size="small" plain @click="clearChat">清空对话</el-button>
+          <Promotion :size="16" />
+          <span>发送</span>
+        </button>
+        <button v-if="messages.length" class="clear-btn" @click="clearChat">清空</button>
       </div>
     </div>
   </el-dialog>
@@ -282,13 +284,89 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 
 .chat-input {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
 .chat-input .el-input {
   flex: 1;
+}
+
+.send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 80px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(45, 212, 125, 0.1));
+  color: #e0f2fe;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.25, 1, 0.5, 1);
+  white-space: nowrap;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(45, 212, 125, 0.18));
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+  transform: translateY(-1px);
+}
+
+.send-btn:active:not(:disabled) {
+  transform: translateY(0);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(45, 212, 125, 0.22));
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(56, 189, 248, 0.1);
+  background: rgba(17, 26, 34, 0.5);
+  color: var(--text-subtle);
+}
+
+.clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.25, 1, 0.5, 1);
+  white-space: nowrap;
+}
+
+.clear-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 480px) {
+  .send-btn {
+    min-width: 64px;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .clear-btn {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
 }
 </style>
