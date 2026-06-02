@@ -125,19 +125,27 @@ CONTEXT_BUILDERS = {
 
 def _detect_data_source():
     """Detect whether current device data comes from live boards or demo seed."""
+    from django.core.cache import cache
+    cached = cache.get("ai_data_source")
+    if cached:
+        return cached
     from apps.telemetry.models import RawPoint
     devices = Device.objects.all()
     if not devices.count():
+        cache.set("ai_data_source", "empty", 30)
         return "empty"
-    # If any device has recent raw points within last 2 minutes, it's live
     recent_cutoff = timezone.now() - timedelta(seconds=120)
     has_live = RawPoint.objects.filter(ts__gte=recent_cutoff).exists()
-    if has_live:
-        return "live"
-    return "demo"
+    result = "live" if has_live else "demo"
+    cache.set("ai_data_source", result, 30)
+    return result
 
 
 def gather_lab_context():
+    from django.core.cache import cache
+    cached = cache.get("ai_lab_context")
+    if cached:
+        return cached
     now = timezone.now()
     cutoff = now - timedelta(seconds=settings.DEVICE_ACTIVE_TTL_SECONDS)
     data_source = _detect_data_source()
@@ -174,7 +182,9 @@ def gather_lab_context():
     if rules:
         rule_lines = [f"- {r.device.sn}/{r.name}: min={r.min_value} max={r.max_value} 当前={r.latest_value}{r.unit}" for r in rules]
         parts.append("## 阈值规则\n" + "\n".join(rule_lines))
-    return "\n\n".join(parts), data_source
+    result = ("\n\n".join(parts), data_source)
+    cache.set("ai_lab_context", result, 30)
+    return result
 
 
 # ---------------------------------------------------------------------------
