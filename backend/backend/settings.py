@@ -27,6 +27,23 @@ load_local_env(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-bearpi-nano-lab-dev")
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
 
+
+def _detect_local_ip():
+    """Auto-detect the LAN IP address of this machine."""
+    import socket as _socket
+    try:
+        s = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+        s.connect(("10.0.0.1", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+LOCAL_IP = os.getenv("LOCAL_IP", "") or _detect_local_ip()
+
+
 # 生产环境必须替换默认SECRET_KEY
 if not DEBUG and SECRET_KEY.startswith("django-insecure"):
     raise SystemExit(
@@ -35,8 +52,11 @@ if not DEBUG and SECRET_KEY.startswith("django-insecure"):
     )
 ALLOWED_HOSTS = csv_env(
     "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost,10.211.95.197,10.212.180.213,10.211.2.200,10.211.141.163,10.211.39.29,10.211.110.10,10.190.212.175,192.168.137.1,192.168.43.1,192.168.1.1",
+    "127.0.0.1,localhost,10.212.180.213,10.211.2.200,10.211.141.163,10.211.39.29,10.211.110.10,10.190.212.175,192.168.137.1,192.168.43.1,192.168.1.1",
 )
+# Auto-inject detected LAN IP
+if LOCAL_IP and LOCAL_IP not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(LOCAL_IP)
 if DEBUG:
     for host in ("10.212.180.213", "10.211.2.200", "10.211.141.163", "192.168.137.1", "10.211.110.10"):
         if host not in ALLOWED_HOSTS:
@@ -178,8 +198,16 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = csv_env(
     "CSRF_TRUSTED_ORIGINS",
-    "http://10.211.95.197:8000,http://10.211.95.197:5173,http://10.211.95.197:5174,http://10.212.180.213:8000,http://10.212.180.213:5173,http://10.212.180.213:5174,http://10.211.2.200:8000,http://10.211.2.200:5173,http://10.211.141.163:8000,http://10.211.141.163:5173,http://10.211.141.163:5174,http://10.211.39.29:8000,http://10.211.39.29:5173,http://10.211.110.10:8000,http://10.211.110.10:5173,http://10.211.110.10:5174,http://10.190.212.175:8000,http://10.190.212.175:5173,http://10.190.212.175:5174,http://192.168.137.1:8000,http://192.168.137.1:5173",
+    "http://10.212.180.213:8000,http://10.212.180.213:5173,http://10.212.180.213:5174,http://10.211.2.200:8000,http://10.211.2.200:5173,http://10.211.141.163:8000,http://10.211.141.163:5173,http://10.211.141.163:5174,http://10.211.39.29:8000,http://10.211.39.29:5173,http://10.211.110.10:8000,http://10.211.110.10:5173,http://10.211.110.10:5174,http://10.190.212.175:8000,http://10.190.212.175:5173,http://10.190.212.175:5174,http://192.168.137.1:8000,http://192.168.137.1:5173",
 )
+# Auto-inject detected LAN IP into CORS and CSRF
+if LOCAL_IP and LOCAL_IP not in ("127.0.0.1", ""):
+    for _port in ("5173", "5174", "8000"):
+        _origin = f"http://{LOCAL_IP}:{_port}"
+        if _origin not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(_origin)
+        if _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
