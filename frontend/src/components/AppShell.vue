@@ -204,7 +204,7 @@ async function logout() {
 
 .topbar-left h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1.2;
 }
 
