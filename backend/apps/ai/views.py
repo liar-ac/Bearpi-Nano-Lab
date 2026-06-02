@@ -1,11 +1,8 @@
 import json
 import logging
 import socket
-import threading
-import time
 import urllib.error
 import urllib.request
-from collections import defaultdict
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -21,26 +18,6 @@ from apps.alarms.models import Alarm
 from apps.devices.models import Device, Sensor
 
 logger = logging.getLogger(__name__)
-
-# Simple in-memory rate limiter for AI endpoints
-_rate_lock = threading.Lock()
-_rate_hits: dict[str, list[float]] = defaultdict(list)
-
-
-def _check_rate_limit(user_id: int) -> bool:
-    """Return True if request is allowed, False if rate limited."""
-    limit = getattr(settings, "AI_RATE_LIMIT_PER_MINUTE", 10)
-    now = time.monotonic()
-    key = str(user_id)
-    with _rate_lock:
-        hits = _rate_hits[key]
-        # Remove entries older than 60 seconds
-        cutoff = now - 60
-        _rate_hits[key] = [t for t in hits if t > cutoff]
-        if len(_rate_hits[key]) >= limit:
-            return False
-        _rate_hits[key].append(now)
-        return True
 
 SYSTEM_PROMPTS = {
     "alarm_diagnosis": (
@@ -526,11 +503,6 @@ class AiChatView(APIView):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter"):
             raise PermissionDenied("仅管理员和实验员可使用AI分析功能")
-        if not _check_rate_limit(request.user.id):
-            return Response(
-                {"error": "AI请求过于频繁，请稍后再试", "reply": ""},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
         feature = request.data.get("feature")
         if feature not in SYSTEM_PROMPTS:
             raise ValidationError({"feature": f"不支持的AI功能: {feature}"})
@@ -549,11 +521,6 @@ class AiQueryView(APIView):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter", "viewer"):
             raise PermissionDenied("登录后即可使用AI问答")
-        if not _check_rate_limit(request.user.id):
-            return Response(
-                {"error": "AI请求过于频繁，请稍后再试", "reply": ""},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
         question = request.data.get("question", "").strip()
         if not question:
             raise ValidationError({"question": "请输入问题"})

@@ -237,7 +237,6 @@ XIAOMI_MIMO_API_KEY = os.getenv("XIAOMI_MIMO_API_KEY", "")
 XIAOMI_MIMO_MODEL = os.getenv("XIAOMI_MIMO_MODEL", "mimo-v2.5-pro")
 XIAOMI_MIMO_TIMEOUT = int(os.getenv("XIAOMI_MIMO_TIMEOUT", "30"))
 AI_ENABLE_DEBUG_FALLBACK = os.getenv("AI_ENABLE_DEBUG_FALLBACK", "false").lower() == "true"
-AI_RATE_LIMIT_PER_MINUTE = int(os.getenv("AI_RATE_LIMIT_PER_MINUTE", "10"))
 
 # 时序数据保留天数，超过此天数的原始采样点会被清理
 RAWPOINT_RETENTION_DAYS = int(os.getenv("RAWPOINT_RETENTION_DAYS", "7"))
