@@ -39,7 +39,11 @@ async function send() {
   scrollToBottom();
 
   try {
-    const result = await sendAiQuery(question) as {
+    const history = messages.value
+      .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+      .slice(0, -1) // exclude the just-pushed user message
+      .map((msg) => ({ role: msg.role, content: msg.content }));
+    const result = await sendAiQuery(question, history) as {
       reply: string;
       error?: string;
       format?: string;
@@ -101,7 +105,7 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
   <el-dialog
     v-model="visible"
     title="AI智能问答"
-    width="min(720px, 95vw)"
+    width="min(800px, 95vw)"
     append-to-body
     :close-on-click-modal="!loading"
     :z-index="9999"
@@ -172,7 +176,7 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 .ai-query-container {
   display: flex;
   flex-direction: column;
-  height: min(60vh, 500px);
+  height: min(65vh, 560px);
 }
 
 .chat-body {

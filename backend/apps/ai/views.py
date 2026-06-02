@@ -233,13 +233,21 @@ def _build_diagnostic(upstream_status, normalized_url, model, reason):
 # MiMo API call
 # ---------------------------------------------------------------------------
 
-def call_mimo_api(full_url, api_key, model, timeout, system_prompt, user_message):
+def call_mimo_api(full_url, api_key, model, timeout, system_prompt, user_message, history=None):
     """Call MiMo Anthropic-compatible Messages API. Returns (status, body, error_summary)."""
+    messages = []
+    if history:
+        for msg in history:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": [{"type": "text", "text": content}]})
+    messages.append({"role": "user", "content": [{"type": "text", "text": user_message}]})
     payload = json.dumps({
         "model": model,
-        "max_tokens": 1024,
+        "max_tokens": 4096,
         "system": system_prompt,
-        "messages": [{"role": "user", "content": [{"type": "text", "text": user_message}]}],
+        "messages": messages,
         "stream": False,
         "temperature": 1.0,
         "top_p": 0.95,
@@ -322,7 +330,7 @@ def _fallback_response(error_msg, diagnostic):
     })
 
 
-def call_ai_api(system_prompt, user_message):
+def call_ai_api(system_prompt, user_message, history=None):
     api_key = settings.XIAOMI_MIMO_API_KEY
     raw_url = settings.XIAOMI_MIMO_API_URL
     model = settings.XIAOMI_MIMO_MODEL
@@ -344,7 +352,7 @@ def call_ai_api(system_prompt, user_message):
 
     try:
         resp_status, body, upstream_error = call_mimo_api(
-            full_url, api_key, model, timeout, system_prompt, user_message
+            full_url, api_key, model, timeout, system_prompt, user_message, history=history
         )
     except TimeoutError as exc:
         logger.error("AI upstream timeout (%ss), url=%s: %s", timeout, full_url, exc)
@@ -536,11 +544,16 @@ class AiQueryView(APIView):
             raise ValidationError({"question": "请输入问题"})
         if len(question) > 500:
             raise ValidationError({"question": "问题长度不能超过500字"})
+        history = request.data.get("history", [])
+        if not isinstance(history, list):
+            history = []
+        # Limit history to last 20 turns to avoid token overflow
+        history = history[-40:]
         lab_context, _data_source = gather_lab_context()
         user_message = f"## 用户问题\n{question}"
         if lab_context:
             user_message += f"\n\n{lab_context}"
-        result = call_ai_api(SYSTEM_PROMPTS["data_query"], user_message)
+        result = call_ai_api(SYSTEM_PROMPTS["data_query"], user_message, history=history)
         if isinstance(result, Response) and result.status_code != 200:
             return result
         result.data["question"] = question

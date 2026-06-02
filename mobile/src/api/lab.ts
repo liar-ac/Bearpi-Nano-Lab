@@ -208,9 +208,9 @@ export function sendAiChat(feature: string, context: Record<string, unknown>) {
   });
 }
 
-export function sendAiQuery(question: string) {
+export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>) {
   return request<{ reply: string; question: string }>('/ai/query', {
     method: 'POST',
-    data: { question }
+    data: { question, history }
   });
 }

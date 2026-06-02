@@ -35,7 +35,11 @@ async function send() {
   await nextTick();
 
   try {
-    const result = await sendAiQuery(question) as {
+    const history = messages.value
+      .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+      .slice(0, -1)
+      .map((msg) => ({ role: msg.role, content: msg.content }));
+    const result = await sendAiQuery(question, history) as {
       reply: string;
       error?: string;
       data_source?: string;
