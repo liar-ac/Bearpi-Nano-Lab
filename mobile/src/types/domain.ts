@@ -138,15 +138,6 @@ export interface CommandResult {
   ackAt?: string | null;
 }
 
-export interface BulkCommandResponse {
-  count: number;
-  batchId?: string;
-  executeAt?: string;
-  serverTime?: string;
-  commands: CommandResult[];
-  task?: BulkTask;
-}
-
 export type BulkTaskStatus = 'queued' | 'running' | 'completed' | 'partial' | 'failed';
 export type BulkTaskActuator = 'motor' | 'light' | 'unknown';
 export type BulkTaskMode = 'auto' | 'on' | 'off' | 'unknown';
@@ -199,6 +190,15 @@ export interface BulkTask {
 export interface BulkTaskListResponse {
   count: number;
   results: BulkTask[];
+}
+
+export interface BulkCommandResponse {
+  count: number;
+  batchId?: string;
+  executeAt?: string;
+  serverTime?: string;
+  commands: CommandResult[];
+  task?: BulkTask;
 }
 
 export interface AuditLog {
