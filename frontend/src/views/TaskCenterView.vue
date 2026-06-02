@@ -431,7 +431,7 @@ function taskType(status: BulkTaskStatus) {
       </el-table>
     </section>
 
-    <el-drawer v-model="detailOpen" size="520px" title="任务详情">
+    <el-drawer v-model="detailOpen" size="520px" title="任务详情" append-to-body :z-index="9998" lock-scroll>
       <template v-if="selectedTask">
         <div class="task-detail-head">
           <div>

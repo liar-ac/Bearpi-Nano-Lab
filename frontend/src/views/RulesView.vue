@@ -260,6 +260,9 @@ onMounted(load);
       width="min(640px, 90vw)"
       append-to-body
       :close-on-click-modal="!aiLoading"
+      :z-index="9999"
+      lock-scroll
+      destroy-on-close
       @close="closeAiDialog"
     >
       <div v-if="aiLoading" class="ai-loading">

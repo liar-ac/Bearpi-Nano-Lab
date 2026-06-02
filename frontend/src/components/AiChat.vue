@@ -61,6 +61,9 @@ function close() {
     width="min(640px, 90vw)"
     append-to-body
     :close-on-click-modal="!loading"
+    :z-index="9999"
+    lock-scroll
+    destroy-on-close
     @close="close"
   >
     <div v-if="loading" class="ai-loading">

@@ -98,7 +98,16 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
     AI问答
   </el-button>
 
-  <el-dialog v-model="visible" title="AI智能问答" width="min(720px, 95vw)" :close-on-click-modal="!loading">
+  <el-dialog
+    v-model="visible"
+    title="AI智能问答"
+    width="min(720px, 95vw)"
+    append-to-body
+    :close-on-click-modal="!loading"
+    :z-index="9999"
+    lock-scroll
+    destroy-on-close
+  >
     <div class="ai-query-container">
       <div ref="chatBody" class="chat-body">
         <div v-if="messages.length === 0" class="chat-welcome">
