@@ -144,7 +144,6 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
             v-model="input"
             class="chat-input-field"
             placeholder="输入你的问题..."
-            :disabled="loading"
             confirm-type="send"
             @confirm="send"
           />

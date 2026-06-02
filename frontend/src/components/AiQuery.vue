@@ -157,7 +157,6 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
         <el-input
           v-model="input"
           placeholder="输入你的问题,比如:哪块板功耗最高?"
-          :disabled="loading"
           @keyup.enter="send"
         />
         <button
