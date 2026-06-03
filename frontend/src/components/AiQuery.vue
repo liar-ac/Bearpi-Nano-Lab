@@ -455,9 +455,9 @@ watch(input, () => nextTick(autoH));
 .side { width: 220px; border-right: 1px solid rgba(255,255,255,0.04); background: rgba(10,14,20,0.5); display: flex; flex-direction: column; flex-shrink: 0; }
 
 .side-new {
-  display: inline-flex; align-items: center; gap: 4px; margin: 8px; padding: 0 12px;
-  height: 32px; width: auto; border: none; border-radius: 10px; background: transparent;
-  color: var(--text-subtle); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 150ms ease;
+  display: inline-flex; align-items: center; gap: 4px; margin: 4px 8px; padding: 0 10px;
+  height: 36px; width: auto; border: none; border-radius: 12px; background: transparent;
+  color: var(--text-subtle); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 150ms ease;
 }
 .side-new:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
