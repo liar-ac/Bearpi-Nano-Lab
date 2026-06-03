@@ -83,7 +83,8 @@ function save() {
 }
 
 function create() {
-  const s: ChatSession = { id: newSid(), title: '新对话', messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+  const num = sessions.value.length + 1;
+  const s: ChatSession = { id: newSid(), title: `未命名对话 #${num}`, messages: [], createdAt: Date.now(), updatedAt: Date.now() };
   sessions.value.unshift(s);
   currentSessionId.value = s.id;
   save();
@@ -305,7 +306,7 @@ watch(input, () => nextTick(autoH));
     <div class="ws">
       <!-- Sidebar -->
       <aside class="side">
-        <button class="side-new" @click="create" title="新建对话 (Ctrl+N)"><Plus :size="14" /> 新建对话</button>
+        <button class="side-new" @click="create" title="新建对话 (Ctrl+N)"><Plus :size="13" /> 新建</button>
         <div class="side-list">
           <div
             v-for="s in sessions"
@@ -454,11 +455,11 @@ watch(input, () => nextTick(autoH));
 .side { width: 220px; border-right: 1px solid rgba(255,255,255,0.04); background: rgba(10,14,20,0.5); display: flex; flex-direction: column; flex-shrink: 0; }
 
 .side-new {
-  display: flex; align-items: center; gap: 5px; margin: 8px 8px 4px; padding: 6px 10px;
-  border: none; border-radius: 8px; background: transparent;
-  color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 150ms ease;
+  display: inline-flex; align-items: center; gap: 4px; margin: 8px; padding: 0 12px;
+  height: 32px; width: auto; border: none; border-radius: 10px; background: transparent;
+  color: var(--text-subtle); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 150ms ease;
 }
-.side-new:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.side-new:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
 .side-list { flex: 1; overflow-y: auto; padding: 0 4px 4px; display: flex; flex-direction: column; gap: 1px; }
 
