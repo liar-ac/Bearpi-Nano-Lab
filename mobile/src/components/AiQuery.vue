@@ -87,7 +87,7 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 <template>
   <wd-button size="small" type="primary" plain @click="open">AI问答</wd-button>
 
-  <wd-popup v-model="visible" position="bottom" closable custom-style="max-height: 85vh; padding: 24rpx; border-radius: 24rpx 24rpx 0 0;">
+  <wd-popup v-model="visible" position="bottom" closable custom-style="max-height: 85vh; padding: 0; border-radius: 28rpx 28rpx 0 0; background: #f7f8fa; overflow: hidden;">
     <view class="ai-query">
       <view class="ai-query-title">
         <text>AI智能问答</text>
@@ -95,8 +95,8 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 
       <scroll-view class="chat-body" scroll-y :scroll-into-view="messages.length ? 'msg-' + (messages.length - 1) : ''">
         <view v-if="messages.length === 0" class="chat-welcome">
-          <text>你好!我是实验室AI助手,可以回答关于设备、传感器、告警等任何问题。</text>
-          <text>试试问:</text>
+          <text class="welcome-title">你好,我是实验室AI助手</text>
+          <text class="welcome-sub">今天想了解什么?</text>
           <view class="example-list">
             <wd-button
               v-for="q in exampleQuestions"
@@ -159,43 +159,69 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 .ai-query {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  height: 70vh;
+  height: 72vh;
+  background: #f7f8fa;
 }
 
-.ai-query-title text {
-  color: #172033;
-  font-size: 32rpx;
-  font-weight: 800;
+.ai-query-title {
+  padding: 28rpx 28rpx 18rpx;
+  border-bottom: 1rpx solid #dde3eb;
+  background: rgba(255, 255, 255, 0.78);
+
+  text {
+    color: #101828;
+    font-size: 30rpx;
+    font-weight: 700;
+  }
 }
 
 .chat-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12rpx 0;
+  padding: 24rpx 24rpx 8rpx;
+  box-sizing: border-box;
 }
 
 .chat-welcome {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  padding: 32rpx 16rpx;
+  align-items: center;
+  gap: 12rpx;
+  padding: 96rpx 16rpx 32rpx;
   text-align: center;
-  color: $uni-text-color-grey;
+}
+
+.welcome-title {
+  color: #101828;
+  font-size: 34rpx;
+  font-weight: 750;
+}
+
+.welcome-sub {
+  color: #667085;
   font-size: 26rpx;
 }
 
 .example-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
+  gap: 14rpx;
   justify-content: center;
-  margin-top: 16rpx;
+  margin-top: 20rpx;
+}
+
+.example-list :deep(.wd-button) {
+  min-height: 60rpx;
+  border-color: #d8dee8;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #344054;
+  font-size: 24rpx;
 }
 
 .chat-message {
   display: flex;
-  margin-bottom: 16rpx;
+  margin-bottom: 18rpx;
 }
 
 .chat-message.user { justify-content: flex-end; }
@@ -204,13 +230,14 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 .message-bubble {
   max-width: 85%;
   padding: 20rpx 24rpx;
-  border-radius: 16rpx;
+  border-radius: 28rpx;
   line-height: 1.6;
+  box-shadow: 0 2rpx 6rpx rgba(16, 24, 40, 0.05);
 }
 
 .chat-message.user .message-bubble {
-  background: $uni-color-primary;
-  border-bottom-right-radius: 4rpx;
+  background: #0a84ff;
+  border-bottom-right-radius: 10rpx;
 
   text {
     color: #ffffff;
@@ -221,9 +248,9 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 }
 
 .chat-message.assistant .message-bubble {
-  background: #f0f2f5;
-  border: 1rpx solid $uni-border-color;
-  border-bottom-left-radius: 4rpx;
+  background: #ffffff;
+  border: 1rpx solid #e5e9f0;
+  border-bottom-left-radius: 10rpx;
 }
 
 .loading-bubble {
@@ -238,14 +265,15 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 }
 
 .diagnostic-box {
-  margin-top: 12rpx;
-  padding: 12rpx;
-  border-top: 1rpx dashed $uni-border-color;
+  margin-top: 14rpx;
+  padding: 14rpx;
+  border-radius: 16rpx;
+  background: #f2f4f7;
 }
 
 .diagnostic-title {
   display: block;
-  color: #9a5b00;
+  color: #b54708;
   font-size: 22rpx;
   font-weight: 700;
   margin-bottom: 6rpx;
@@ -253,7 +281,7 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 
 .diagnostic-text {
   display: block;
-  color: #9a5b00;
+  color: #667085;
   font-size: 22rpx;
   line-height: 1.5;
 }
@@ -261,25 +289,31 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 .chat-input {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
-  padding-top: 16rpx;
-  border-top: 1rpx solid $uni-border-color;
+  gap: 14rpx;
+  padding: 18rpx 24rpx 24rpx;
+  border-top: 1rpx solid #dde3eb;
+  background: rgba(247, 248, 250, 0.94);
 }
 
 .input-row {
   display: flex;
-  gap: 12rpx;
+  gap: 14rpx;
   align-items: center;
 }
 
 .chat-input-field {
   flex: 1;
-  height: 72rpx;
-  padding: 0 20rpx;
-  border: 1rpx solid $uni-border-color;
-  border-radius: 8rpx;
-  background: #f8fafc;
-  color: #172033;
+  height: 76rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid #d8dee8;
+  border-radius: 20rpx;
+  background: #ffffff;
+  color: #101828;
   font-size: 26rpx;
+  box-shadow: 0 2rpx 5rpx rgba(16, 24, 40, 0.04);
+}
+
+.chat-input :deep(.wd-button) {
+  border-radius: 18rpx;
 }
 </style>
