@@ -3,7 +3,7 @@ import {
   ChatLineSquare, Loading, Promotion, Refresh, Edit, VideoPause,
   Plus, Delete, CopyDocument, CircleCheck
 } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiQuery, parseAiCommand, sendCommand, type AiCommandResult } from '@/api/lab';
@@ -89,15 +89,50 @@ function create() {
   save();
 }
 
+const renamingId = ref('');
+const renameValue = ref('');
+
 function switchTo(id: string) { currentSessionId.value = id; }
 
-function remove(id: string) {
+async function remove(id: string) {
+  const s = sessions.value.find((s) => s.id === id);
+  if (!s) return;
+  try {
+    await ElMessageBox.confirm(`删除「${s.title}」？`, '删除会话', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' });
+  } catch { return; }
   const i = sessions.value.findIndex((s) => s.id === id);
   if (i < 0) return;
   sessions.value.splice(i, 1);
   if (!sessions.value.length) create();
   if (currentSessionId.value === id) currentSessionId.value = sessions.value[0].id;
   save();
+}
+
+function startRename(id: string) {
+  const s = sessions.value.find((s) => s.id === id);
+  if (!s) return;
+  renamingId.value = id;
+  renameValue.value = s.title;
+  nextTick(() => {
+    const el = document.querySelector('.rename-input') as HTMLInputElement;
+    el?.focus();
+    el?.select();
+  });
+}
+
+function confirmRename() {
+  const s = sessions.value.find((s) => s.id === renamingId.value);
+  if (s && renameValue.value.trim()) s.title = renameValue.value.trim();
+  renamingId.value = '';
+  renameValue.value = '';
+  save();
+}
+
+function cancelRename() { renamingId.value = ''; renameValue.value = ''; }
+
+function onRenameKey(e: KeyboardEvent) {
+  if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+  else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
 }
 
 function autoTitle(s: ChatSession) {
@@ -244,8 +279,20 @@ function clear() { if (currentSession.value) { currentSession.value.messages = [
 function fmtTime(ts: number) { const d = new Date(ts); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
 function autoH() { const el = textareaRef.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; } }
 
-onBeforeUnmount(() => { if (generating.value) stop(); });
-watch(visible, (v) => { if (v) { load(); nextTick(() => textareaRef.value?.focus()); } });
+function onGlobalKey(e: KeyboardEvent) {
+  if (!visible.value) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); create(); }
+  if (e.key === 'Delete' && !inputFocused.value && renamingId.value === '') {
+    const s = currentSession.value;
+    if (s) void remove(s.id);
+  }
+}
+
+onBeforeUnmount(() => { if (generating.value) stop(); window.removeEventListener('keydown', onGlobalKey); });
+watch(visible, (v) => {
+  if (v) { load(); nextTick(() => textareaRef.value?.focus()); window.addEventListener('keydown', onGlobalKey); }
+  else { window.removeEventListener('keydown', onGlobalKey); }
+});
 watch(input, () => nextTick(autoH));
 </script>
 
@@ -258,11 +305,31 @@ watch(input, () => nextTick(autoH));
     <div class="ws">
       <!-- Sidebar -->
       <aside class="side">
-        <button class="side-new" @click="create"><Plus :size="14" /> 新建</button>
+        <button class="side-new" @click="create" title="新建对话 (Ctrl+N)"><Plus :size="14" /> 新建对话</button>
         <div class="side-list">
-          <div v-for="s in sessions" :key="s.id" class="side-item" :class="{ active: s.id === currentSessionId }" @click="switchTo(s.id)">
-            <span class="side-title">{{ s.title }}</span>
-            <button class="side-del" @click.stop="remove(s.id)"><Delete :size="11" /></button>
+          <div
+            v-for="s in sessions"
+            :key="s.id"
+            class="side-item"
+            :class="{ active: s.id === currentSessionId, renaming: s.id === renamingId }"
+            @click="switchTo(s.id)"
+          >
+            <template v-if="s.id === renamingId">
+              <input
+                class="rename-input"
+                v-model="renameValue"
+                @keydown="onRenameKey"
+                @blur="confirmRename"
+                @click.stop
+              />
+            </template>
+            <template v-else>
+              <span class="side-title">{{ s.title }}</span>
+              <div class="side-actions">
+                <button class="side-btn" title="重命名" @click.stop="startRename(s.id)"><Edit :size="11" /></button>
+                <button class="side-btn" title="删除" @click.stop="remove(s.id)"><Delete :size="11" /></button>
+              </div>
+            </template>
           </div>
         </div>
       </aside>
@@ -384,30 +451,44 @@ watch(input, () => nextTick(autoH));
 .ws { display: flex; height: min(78vh, 660px); border-radius: 8px; overflow: hidden; }
 
 /* ── Sidebar ────────────────────────────────────────────────── */
-.side { width: 200px; border-right: 1px solid rgba(255,255,255,0.04); background: rgba(10,14,20,0.5); display: flex; flex-direction: column; flex-shrink: 0; }
+.side { width: 220px; border-right: 1px solid rgba(255,255,255,0.04); background: rgba(10,14,20,0.5); display: flex; flex-direction: column; flex-shrink: 0; }
 
 .side-new {
-  display: flex; align-items: center; gap: 6px; margin: 12px; padding: 8px 12px;
+  display: flex; align-items: center; gap: 6px; margin: 10px; padding: 7px 12px;
   border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: transparent;
   color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 150ms ease;
 }
-.side-new:hover { color: var(--text); border-color: rgba(255,255,255,0.1); }
+.side-new:hover { color: var(--text); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); }
 
-.side-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 2px; }
+.side-list { flex: 1; overflow-y: auto; padding: 0 6px 6px; display: flex; flex-direction: column; gap: 1px; }
 
 .side-item {
-  display: flex; align-items: center; gap: 4px; padding: 7px 10px; border-radius: 6px;
-  cursor: pointer; transition: all 150ms ease;
+  display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 6px;
+  cursor: pointer; transition: all 150ms ease; min-height: 34px;
 }
 .side-item:hover { background: rgba(255,255,255,0.03); }
 .side-item.active { background: rgba(56,189,248,0.06); }
+.side-item.renaming { background: rgba(255,255,255,0.02); }
 
-.side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); }
+.side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); line-height: 1.3; }
 .side-item.active .side-title { color: var(--text); }
 
-.side-del { display: none; padding: 2px; border: none; background: transparent; color: var(--text-subtle); cursor: pointer; border-radius: 4px; }
-.side-item:hover .side-del { display: flex; }
-.side-del:hover { color: var(--red); }
+.rename-input {
+  flex: 1; min-width: 0; padding: 3px 6px; border: 1px solid rgba(56,189,248,0.3); border-radius: 4px;
+  background: rgba(5,12,18,0.5); color: var(--text); font-size: 13px; font-family: inherit; outline: none;
+}
+.rename-input:focus { border-color: rgba(56,189,248,0.5); }
+
+.side-actions { display: flex; gap: 1px; opacity: 0; transition: opacity 150ms ease; flex-shrink: 0; }
+.side-item:hover .side-actions { opacity: 1; }
+
+.side-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border: none; border-radius: 4px; background: transparent; color: var(--text-subtle);
+  cursor: pointer; transition: all 150ms ease;
+}
+.side-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.side-btn:last-child:hover { color: var(--red); background: rgba(255,104,116,0.06); }
 
 /* ── Chat ───────────────────────────────────────────────────── */
 .chat { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
