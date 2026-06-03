@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   ChatLineSquare, Loading, Promotion, Refresh, Edit, VideoPause,
-  Plus, Delete, CopyDocument, CircleCheck
+  Delete, CopyDocument, CircleCheck
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
@@ -306,7 +306,7 @@ watch(input, () => nextTick(autoH));
     <div class="ws">
       <!-- Sidebar -->
       <aside class="side">
-        <button class="side-new" @click="create" title="新建对话 (Ctrl+N)"><Plus :size="13" /> 新建</button>
+        <button class="side-new" @click="create" title="新建对话 (Ctrl+N)"><span class="side-new-icon" aria-hidden="true">+</span><span class="side-new-text">新建</span></button>
         <div class="side-list">
           <div
             v-for="s in sessions"
@@ -455,11 +455,19 @@ watch(input, () => nextTick(autoH));
 .side { width: 220px; border-right: 1px solid rgba(255,255,255,0.04); background: rgba(10,14,20,0.5); display: flex; flex-direction: column; flex-shrink: 0; }
 
 .side-new {
-  display: inline-flex; align-items: center; gap: 4px; margin: 4px 8px; padding: 0 10px;
-  height: 36px; width: auto; border: none; border-radius: 12px; background: transparent;
-  color: var(--text-subtle); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 150ms ease;
+  align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  gap: 3px; box-sizing: border-box; margin: 6px 8px 4px; padding: 0 8px;
+  height: 26px; max-width: 74px; min-width: 0; width: auto; border: none; border-radius: 8px;
+  background: transparent; color: var(--text-subtle); font-size: 12px; font-weight: 500; line-height: 1;
+  white-space: nowrap; overflow: hidden; cursor: pointer; box-shadow: none; transition: color 150ms ease, background 150ms ease;
 }
-.side-new:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.side-new:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.side-new:focus-visible { outline: 1px solid rgba(148,163,184,0.35); outline-offset: 1px; }
+.side-new-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 12px;
+  width: 12px; height: 12px; font-size: 14px; font-weight: 400; line-height: 10px;
+}
+.side-new-text { display: inline-block; flex: 0 1 auto; min-width: 0; line-height: 1; }
 
 .side-list { flex: 1; overflow-y: auto; padding: 0 4px 4px; display: flex; flex-direction: column; gap: 1px; }
 
