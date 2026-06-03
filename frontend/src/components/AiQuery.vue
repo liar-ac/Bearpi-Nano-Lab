@@ -192,7 +192,7 @@ async function detectAndShowCommand(msgIndex: number) {
   const cmdMsg: ChatMessage = {
     id: nextId(),
     role: 'assistant',
-    content: '',
+    content: '正在解析指令...',
     status: 'done',
     commandStatus: 'confirming',
   };

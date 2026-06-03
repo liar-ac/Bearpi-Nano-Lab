@@ -330,11 +330,12 @@ def _fallback_response(error_msg, diagnostic):
     })
 
 
-def call_ai_api(system_prompt, user_message, history=None):
+def call_ai_api(system_prompt, user_message, history=None, timeout=None):
     api_key = settings.XIAOMI_MIMO_API_KEY
     raw_url = settings.XIAOMI_MIMO_API_URL
     model = settings.XIAOMI_MIMO_MODEL
-    timeout = settings.XIAOMI_MIMO_TIMEOUT
+    if timeout is None:
+        timeout = settings.XIAOMI_MIMO_TIMEOUT
 
     if not api_key or api_key in ("your-api-key-here", "your-token-plan-api-key-here"):
         logger.warning("AI API key not configured (XIAOMI_MIMO_API_KEY)")
@@ -564,6 +565,62 @@ class AiQueryView(APIView):
 # Natural Language Device Control
 # ---------------------------------------------------------------------------
 
+def _regex_parse_command(text):
+    """Fallback regex-based command parser when AI API is unavailable."""
+    import re as _re
+    text_lower = text.lower()
+    # Extract device identifier
+    sn_match = _re.search(r'[aA]\d{3}', text)
+    slot_match = _re.search(r'槽位\s*(\d+)', text)
+    if not sn_match and not slot_match:
+        return None
+    # Determine actuator
+    actuator = "unknown"
+    if any(kw in text_lower for kw in ['电机', '风扇', '通风', 'motor']):
+        actuator = "motor"
+    elif any(kw in text_lower for kw in ['灯', '补光', '照明', 'light']):
+        actuator = "light"
+    if actuator == "unknown":
+        return None
+    # Determine mode
+    mode = "unknown"
+    if any(kw in text_lower for kw in ['打开', '开', '开启', 'on']):
+        mode = "on"
+    elif any(kw in text_lower for kw in ['关闭', '关', '关掉', 'off']):
+        mode = "off"
+    elif any(kw in text_lower for kw in ['自动', 'auto']):
+        mode = "auto"
+    if mode == "unknown":
+        return None
+    # Look up device
+    from apps.devices.models import Device
+    if sn_match:
+        sn = f"BEARPI-NANO-{sn_match.group().upper()}"
+    else:
+        slot_no = int(slot_match.group(1))
+        device = Device.objects.filter(slot_no=slot_no).first()
+        sn = device.sn if device else None
+    if sn:
+        device = Device.objects.filter(sn=sn).first()
+    else:
+        device = None
+    if not device:
+        return {"detected": False, "explanation": f"未找到设备"}
+    actuator_label = "电机" if actuator == "motor" else "补光灯"
+    mode_label = "打开" if mode == "on" else "关闭" if mode == "off" else "自动"
+    return {
+        "detected": True,
+        "device_sn": device.sn,
+        "device_id": device.id,
+        "slot_no": device.slot_no,
+        "device_status": device.status,
+        "actuator": actuator,
+        "mode": mode,
+        "confidence": 0.85,
+        "explanation": f"将{device.sn}(槽位{device.slot_no})的{actuator_label}{mode_label}",
+    }
+
+
 COMMAND_PARSE_PROMPT = (
     "你是IoT设备控制意图解析器。从用户的自然语言中提取设备控制指令。\n"
     "返回JSON格式:\n"
@@ -592,8 +649,16 @@ class AiCommandParseView(APIView):
         if len(text) > 200:
             raise ValidationError({"text": "指令长度不能超过200字"})
 
-        result = call_ai_api(COMMAND_PARSE_PROMPT, f"用户说: {text}")
+        # Fast path: try regex first (no API call needed)
+        fallback = _regex_parse_command(text)
+        if fallback and fallback.get("detected"):
+            return Response(fallback)
+
+        # Slow path: use AI API for complex parsing
+        result = call_ai_api(COMMAND_PARSE_PROMPT, f"用户说: {text}", timeout=10)
         if isinstance(result, Response) and result.status_code != 200:
+            if fallback:
+                return Response(fallback)
             return result
 
         # Parse the AI reply as JSON
