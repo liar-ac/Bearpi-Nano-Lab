@@ -454,20 +454,20 @@ watch(input, () => nextTick(autoH));
 .side { width: 220px; border-right: 1px solid rgba(255,255,255,0.04); background: rgba(10,14,20,0.5); display: flex; flex-direction: column; flex-shrink: 0; }
 
 .side-new {
-  display: flex; align-items: center; gap: 6px; margin: 10px; padding: 7px 12px;
-  border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: transparent;
-  color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 150ms ease;
+  display: flex; align-items: center; gap: 5px; margin: 8px 8px 4px; padding: 6px 10px;
+  border: none; border-radius: 8px; background: transparent;
+  color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 150ms ease;
 }
-.side-new:hover { color: var(--text); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); }
+.side-new:hover { color: var(--text); background: rgba(255,255,255,0.04); }
 
-.side-list { flex: 1; overflow-y: auto; padding: 0 6px 6px; display: flex; flex-direction: column; gap: 1px; }
+.side-list { flex: 1; overflow-y: auto; padding: 0 4px 4px; display: flex; flex-direction: column; gap: 1px; }
 
 .side-item {
-  display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 6px;
-  cursor: pointer; transition: all 150ms ease; min-height: 34px;
+  display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 8px;
+  cursor: pointer; transition: all 150ms ease; min-height: 32px;
 }
-.side-item:hover { background: rgba(255,255,255,0.03); }
-.side-item.active { background: rgba(56,189,248,0.06); }
+.side-item:hover { background: rgba(255,255,255,0.04); }
+.side-item.active { background: rgba(255,255,255,0.06); }
 .side-item.renaming { background: rgba(255,255,255,0.02); }
 
 .side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); line-height: 1.3; }
