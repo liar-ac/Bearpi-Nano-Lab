@@ -431,17 +431,22 @@ watch(input, () => nextTick(autoH));
 
         <!-- Input -->
         <div class="input-area" :class="{ focused: inputFocused }">
-          <textarea
-            ref="textareaRef"
-            v-model="input"
-            class="ta"
-            placeholder="给实验室助手发送消息…"
-            rows="1"
-            @keydown="onKey"
-            @focus="inputFocused = true"
-            @blur="inputFocused = false"
-          />
-          <button class="send" type="button" title="发送" :disabled="!canSend" @click="send()"><Promotion :size="16" /></button>
+          <div class="input-frame">
+            <textarea
+              ref="textareaRef"
+              v-model="input"
+              class="ta"
+              placeholder="给实验室助手发送消息…"
+              rows="1"
+              @keydown="onKey"
+              @focus="inputFocused = true"
+              @blur="inputFocused = false"
+            />
+            <button class="send" type="button" title="发送" :disabled="!canSend" @click="send()">
+              <Promotion :size="15" />
+              <span>发送</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1143,33 +1148,42 @@ watch(input, () => nextTick(autoH));
 }
 
 .input-area {
-  position: relative;
   flex-shrink: 0;
   padding: 15px 24px 18px;
   border-top: 1px solid rgba(0, 0, 0, 0.07);
   background: rgba(247, 248, 250, 0.94);
 }
 
-.input-area .ta {
+.input-frame {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
   width: 100%;
-  min-height: 50px;
-  max-height: 118px;
-  padding: 13px 52px 13px 15px;
+  padding: 5px 5px 5px 15px;
   border: 1px solid #d8dee8;
   border-radius: 15px;
-  outline: none;
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.input-area .ta {
+  flex: 1;
+  width: auto;
+  min-height: 50px;
+  max-height: 118px;
+  padding: 10px 0;
+  border: none;
+  outline: none;
+  background: transparent;
   color: #101828;
   font-size: 14px;
   font-family: inherit;
   line-height: 1.5;
   resize: none;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.input-area.focused .ta,
-.input-area .ta:focus {
+.input-area.focused .input-frame {
   border-color: rgba(10, 132, 255, 0.62);
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1), 0 1px 2px rgba(16, 24, 40, 0.04);
 }
@@ -1179,19 +1193,30 @@ watch(input, () => nextTick(autoH));
 }
 
 .send {
-  position: absolute;
-  right: 34px;
-  bottom: 25px;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 82px;
+  height: 40px;
+  padding: 0 14px;
   border: none;
-  border-radius: 11px;
+  border-radius: 12px;
   background: #0a84ff;
   color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   box-shadow: 0 8px 18px rgba(10, 132, 255, 0.22);
   transition: background 150ms ease, transform 150ms ease, opacity 150ms ease;
+}
+
+.send :deep(svg) {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
 }
 
 .send:hover:not(:disabled) {
@@ -1276,8 +1301,9 @@ watch(input, () => nextTick(autoH));
   }
 
   .send {
-    right: 24px;
-    bottom: 21px;
+    min-width: 74px;
+    height: 38px;
+    padding: 0 12px;
   }
 }
 </style>

@@ -316,4 +316,11 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
 .chat-input :deep(.wd-button) {
   border-radius: 18rpx;
 }
+
+.input-row :deep(.wd-button) {
+  min-width: 112rpx;
+  height: 76rpx;
+  flex-shrink: 0;
+  font-weight: 700;
+}
 </style>
