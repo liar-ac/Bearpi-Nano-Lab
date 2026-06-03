@@ -558,3 +558,73 @@ class AiQueryView(APIView):
             return result
         result.data["question"] = question
         return result
+
+
+# ---------------------------------------------------------------------------
+# Natural Language Device Control
+# ---------------------------------------------------------------------------
+
+COMMAND_PARSE_PROMPT = (
+    "你是IoT设备控制意图解析器。从用户的自然语言中提取设备控制指令。\n"
+    "返回JSON格式:\n"
+    '{"detected": true/false, "device_sn": "设备SN或空", "actuator": "motor/light/unknown", '
+    '"mode": "on/off/auto/unknown", "confidence": 0-1, "explanation": "中文解释"}\n\n'
+    "规则:\n"
+    "- 电机/风扇/通风 → actuator=motor\n"
+    "- 灯/补光灯/照明 → actuator=light\n"
+    "- 打开/开/开启/on → mode=on\n"
+    "- 关闭/关/关掉/off → mode=off\n"
+    "- 自动/auto → mode=auto\n"
+    "- 设备SN格式: BEARPI-NANO-A001 或 A001 或 槽位1\n"
+    "- 如果不是设备控制指令,返回 detected=false\n"
+    "- 只返回JSON,不要其他文字"
+)
+
+
+class AiCommandParseView(APIView):
+    def post(self, request):
+        role = resolve_role(request.user)
+        if role not in ("admin", "experimenter"):
+            raise PermissionDenied("仅管理员和实验员可使用设备控制功能")
+        text = request.data.get("text", "").strip()
+        if not text:
+            raise ValidationError({"text": "请输入指令文本"})
+        if len(text) > 200:
+            raise ValidationError({"text": "指令长度不能超过200字"})
+
+        result = call_ai_api(COMMAND_PARSE_PROMPT, f"用户说: {text}")
+        if isinstance(result, Response) and result.status_code != 200:
+            return result
+
+        # Parse the AI reply as JSON
+        reply = result.data.get("reply", "")
+        try:
+            # Try to extract JSON from the reply
+            import re
+            json_match = re.search(r'\{[^}]+\}', reply)
+            if json_match:
+                parsed = json.loads(json_match.group())
+            else:
+                parsed = {"detected": False, "explanation": "无法解析指令"}
+        except (json.JSONDecodeError, ValueError):
+            parsed = {"detected": False, "explanation": "AI返回格式异常"}
+
+        # Validate device exists if detected
+        if parsed.get("detected") and parsed.get("device_sn"):
+            from apps.devices.models import Device
+            sn = parsed["device_sn"].upper()
+            # Normalize SN
+            if not sn.startswith("BEARPI-NANO-"):
+                if sn.startswith("A") and len(sn) <= 4:
+                    sn = f"BEARPI-NANO-{sn}"
+            device = Device.objects.filter(sn__icontains=sn).first()
+            if device:
+                parsed["device_id"] = device.id
+                parsed["device_sn"] = device.sn
+                parsed["slot_no"] = device.slot_no
+                parsed["device_status"] = device.status
+            else:
+                parsed["detected"] = False
+                parsed["explanation"] = f"未找到设备: {parsed['device_sn']}"
+
+        return Response(parsed)

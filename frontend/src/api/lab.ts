@@ -209,3 +209,22 @@ export function sendAiQuery(question: string, history?: Array<{ role: string; co
     body: JSON.stringify({ question, history })
   });
 }
+
+export interface AiCommandResult {
+  detected: boolean;
+  device_sn?: string;
+  device_id?: number;
+  slot_no?: number;
+  device_status?: string;
+  actuator?: string;
+  mode?: string;
+  confidence?: number;
+  explanation?: string;
+}
+
+export function parseAiCommand(text: string) {
+  return request<AiCommandResult>('/ai/command', {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  });
+}

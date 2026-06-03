@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ChatLineSquare, Loading, Promotion, Refresh, Edit, Delete, VideoPause } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ChatLineSquare, Loading, Promotion, Refresh, Edit, Delete, VideoPause, Open, TurnOff } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
-import { sendAiQuery } from '@/api/lab';
+import { sendAiQuery, parseAiCommand, sendCommand, type AiCommandResult } from '@/api/lab';
 
 interface ChatMessage {
   id: string;
@@ -14,6 +14,9 @@ interface ChatMessage {
   status?: 'sending' | 'queued' | 'generating' | 'done' | 'error';
   error?: string;
   editing?: boolean;
+  command?: AiCommandResult;
+  commandStatus?: 'pending' | 'confirming' | 'executing' | 'executed' | 'rejected' | 'error';
+  commandResult?: string;
 }
 
 const visible = ref(false);
@@ -86,6 +89,7 @@ function sendMessage(withContext = false) {
   const historyPrefix = withContext ? buildContextPrefix() : '';
   const fullQuestion = historyPrefix + question;
 
+  const msgIndex = messages.value.length;
   messages.value.push({
     id: nextId(),
     role: 'user',
@@ -94,7 +98,13 @@ function sendMessage(withContext = false) {
   });
   input.value = '';
   scrollToBottom();
-  processQuestion(fullQuestion);
+
+  // Check if it looks like a device command
+  if (looksLikeCommand(question)) {
+    void detectAndShowCommand(msgIndex);
+  } else {
+    processQuestion(fullQuestion);
+  }
 }
 
 function buildContextPrefix(): string {
@@ -161,6 +171,85 @@ async function processQuestion(question: string) {
       await nextTick();
       processQuestion(next);
     }
+  }
+}
+
+// ── Command Detection ──────────────────────────────────────────
+const commandKeywords = ['打开', '关闭', '关掉', '开', '关', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇', '通风'];
+
+function looksLikeCommand(text: string): boolean {
+  const lower = text.toLowerCase();
+  const hasKeyword = commandKeywords.some((kw) => lower.includes(kw));
+  const hasDevice = /[aA]\d{3}|槽位\d+|bearpi/i.test(text);
+  return hasKeyword && hasDevice;
+}
+
+async function detectAndShowCommand(msgIndex: number) {
+  const userMsg = messages.value[msgIndex];
+  if (!userMsg || userMsg.role !== 'user') return;
+
+  // Add a command card message after the user message
+  const cmdMsg: ChatMessage = {
+    id: nextId(),
+    role: 'assistant',
+    content: '',
+    status: 'done',
+    commandStatus: 'confirming',
+  };
+  messages.value.splice(msgIndex + 1, 0, cmdMsg);
+  scrollToBottom();
+
+  try {
+    const result = await parseAiCommand(userMsg.content);
+    cmdMsg.command = result;
+
+    if (result.detected && result.device_id) {
+      cmdMsg.content = `检测到控制指令: ${result.explanation || ''}`;
+      cmdMsg.commandStatus = 'confirming';
+    } else {
+      cmdMsg.content = result.explanation || '未识别为设备控制指令';
+      cmdMsg.commandStatus = 'rejected';
+      cmdMsg.command = undefined;
+    }
+  } catch {
+    cmdMsg.content = '指令解析失败';
+    cmdMsg.commandStatus = 'error';
+  }
+  scrollToBottom();
+}
+
+async function executeCommand(msgIndex: number) {
+  const cmdMsg = messages.value[msgIndex];
+  if (!cmdMsg?.command?.device_id) return;
+
+  cmdMsg.commandStatus = 'executing';
+  cmdMsg.content = '正在执行指令...';
+
+  try {
+    const { device_id, actuator, mode } = cmdMsg.command;
+    const paramKey = actuator === 'motor' ? 'motor_override' : 'light_override';
+    const params: Record<string, string | number | boolean> = {};
+    params[paramKey] = mode ?? 'on';
+    await sendCommand(device_id!, {
+      type: 'set_param',
+      params,
+    });
+    cmdMsg.commandStatus = 'executed';
+    cmdMsg.content = `指令已下发: ${cmdMsg.command.device_sn} ${actuator === 'motor' ? '电机' : '补光灯'} ${mode === 'on' ? '打开' : mode === 'off' ? '关闭' : '自动'}`;
+    ElMessage.success('指令已下发');
+  } catch (cause) {
+    cmdMsg.commandStatus = 'error';
+    cmdMsg.content = `指令执行失败: ${cause instanceof Error ? cause.message : '未知错误'}`;
+    ElMessage.error('指令执行失败');
+  }
+  scrollToBottom();
+}
+
+function rejectCommand(msgIndex: number) {
+  const cmdMsg = messages.value[msgIndex];
+  if (cmdMsg) {
+    cmdMsg.commandStatus = 'rejected';
+    cmdMsg.content = '已取消执行';
   }
 }
 
@@ -369,7 +458,37 @@ watch(visible, (val) => {
 
             <!-- Assistant message -->
             <template v-else>
-              <template v-if="msg.status === 'generating' && !msg.content">
+              <!-- Command card -->
+              <template v-if="msg.commandStatus">
+                <div class="command-card" :class="`cmd-${msg.commandStatus}`">
+                  <div class="cmd-icon">
+                    <el-icon v-if="msg.commandStatus === 'confirming'" class="is-loading"><Loading /></el-icon>
+                    <el-icon v-else-if="msg.commandStatus === 'executing'" class="is-loading"><Loading /></el-icon>
+                    <el-icon v-else-if="msg.commandStatus === 'executed'"><Open /></el-icon>
+                    <el-icon v-else-if="msg.commandStatus === 'rejected'"><TurnOff /></el-icon>
+                    <el-icon v-else><TurnOff /></el-icon>
+                  </div>
+                  <div class="cmd-info">
+                    <div v-if="msg.command?.detected && msg.commandStatus === 'confirming'" class="cmd-detail">
+                      <strong>设备控制指令</strong>
+                      <span>设备: {{ msg.command.device_sn }} (槽位{{ msg.command.slot_no }})</span>
+                      <span>执行器: {{ msg.command.actuator === 'motor' ? '电机' : '补光灯' }}</span>
+                      <span>动作: {{ msg.command.mode === 'on' ? '打开' : msg.command.mode === 'off' ? '关闭' : '自动' }}</span>
+                      <span v-if="msg.command.confidence">置信度: {{ Math.round(msg.command.confidence * 100) }}%</span>
+                      <div class="cmd-actions">
+                        <button class="cmd-confirm" @click="executeCommand(index)">确认执行</button>
+                        <button class="cmd-reject" @click="rejectCommand(index)">取消</button>
+                      </div>
+                    </div>
+                    <template v-else>
+                      <span>{{ msg.content }}</span>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Normal AI response -->
+              <template v-else-if="msg.status === 'generating' && !msg.content">
                 <div class="loading-bubble">
                   <el-icon class="is-loading"><Loading /></el-icon>
                   <span>{{ statusLabel || '思考中...' }}</span>
@@ -577,6 +696,126 @@ watch(visible, (val) => {
   align-items: center;
   gap: 8px;
   color: var(--text-muted);
+}
+
+/* ── Command Card ────────────────────────────────────────────── */
+.command-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+}
+
+.cmd-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.cmd-confirming .cmd-icon {
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--cyan);
+}
+
+.cmd-executing .cmd-icon {
+  background: rgba(246, 184, 75, 0.1);
+  color: var(--amber);
+}
+
+.cmd-executed .cmd-icon {
+  background: rgba(45, 212, 125, 0.1);
+  color: var(--green);
+}
+
+.cmd-rejected .cmd-icon,
+.cmd-error .cmd-icon {
+  background: rgba(255, 104, 116, 0.1);
+  color: var(--red);
+}
+
+.cmd-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cmd-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cmd-detail strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.cmd-detail span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.cmd-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cmd-confirm {
+  padding: 6px 16px;
+  border: 1px solid rgba(45, 212, 125, 0.4);
+  border-radius: 6px;
+  background: rgba(45, 212, 125, 0.12);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.cmd-confirm:hover {
+  background: rgba(45, 212, 125, 0.2);
+  border-color: rgba(45, 212, 125, 0.6);
+  box-shadow: 0 0 10px rgba(45, 212, 125, 0.15);
+}
+
+.cmd-reject {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.cmd-reject:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.cmd-confirming {
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.cmd-executing {
+  border-color: rgba(246, 184, 75, 0.2);
+}
+
+.cmd-executed {
+  border-color: rgba(45, 212, 125, 0.2);
+}
+
+.cmd-rejected,
+.cmd-error {
+  border-color: rgba(255, 104, 116, 0.15);
+  opacity: 0.7;
 }
 
 /* ── Message Actions ─────────────────────────────────────────── */
