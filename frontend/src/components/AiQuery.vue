@@ -435,7 +435,7 @@ watch(input, () => nextTick(autoH));
             @focus="inputFocused = true"
             @blur="inputFocused = false"
           />
-          <button class="send" :disabled="!canSend" @click="send()"><Top :size="16" /></button>
+          <button class="send" :disabled="!canSend" @click="send()"><Promotion :size="16" /></button>
           <Transition name="fade">
             <div v-if="inputFocused" class="hints">
               <span>Enter 发送</span><span>Shift+Enter 换行</span><span>Ctrl+Enter 引用上下文</span>

@@ -1,5 +1,6 @@
 import { reactive } from 'vue';
 import { USE_MOCK, WS_BASE } from '@/api/config';
+import { refreshAccessToken } from '@/api/http';
 import { nextRealtimeMessage } from '@/api/mock';
 import type { RealtimeAlarmEvent, RealtimeMessage } from '@/types/domain';
 
@@ -141,6 +142,24 @@ function connectWebSocket() {
     }
 
     if (event.code === 4401 || event.code === 1008) {
+      if (realtimeState.attempts === 0) {
+        realtimeState.status = 'reconnecting';
+        realtimeState.error = 'Token过期，尝试刷新后重连...';
+        refreshAccessToken().then((newToken) => {
+          const hasSubscribers = listeners.size > 0 || alarmListeners.size > 0;
+          if (!hasSubscribers) {
+            realtimeState.status = 'idle';
+            realtimeState.error = '';
+          } else if (newToken) {
+            realtimeState.attempts = 0;
+            connectWebSocket();
+          } else {
+            realtimeState.status = 'auth_failed';
+            realtimeState.error = '实时连接鉴权失败，请重新登录';
+          }
+        });
+        return;
+      }
       realtimeState.status = 'auth_failed';
       realtimeState.error = '实时连接鉴权失败，请重新登录';
       return;

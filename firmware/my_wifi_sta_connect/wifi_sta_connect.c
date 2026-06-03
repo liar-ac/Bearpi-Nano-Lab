@@ -122,8 +122,8 @@ static BOOL WifiSTATask(void)
             printf("Select:%3d wireless, Waiting...\r\n", i+1);
 
             //拷贝要连接的热点信息
-            strcpy(select_ap_config.ssid, info[i].ssid);
-            strcpy(select_ap_config.preSharedKey, SELECT_WIFI_PASSWORD);
+            snprintf(select_ap_config.ssid, sizeof(select_ap_config.ssid), "%s", info[i].ssid);
+            snprintf(select_ap_config.preSharedKey, sizeof(select_ap_config.preSharedKey), "%s", SELECT_WIFI_PASSWORD);
             select_ap_config.securityType = SELECT_WIFI_SECURITYTYPE;
 
             if (AddDeviceConfig(&select_ap_config, &result) == WIFI_SUCCESS)

@@ -60,8 +60,8 @@ static BOOL WifiAPTask(void)
     //设置指定的热点配置
     HotspotConfig config = {0};
 
-    strcpy(config.ssid, AP_SSID);
-    strcpy(config.preSharedKey, AP_PSK);
+    snprintf(config.ssid, sizeof(config.ssid), "%s", AP_SSID);
+    snprintf(config.preSharedKey, sizeof(config.preSharedKey), "%s", AP_PSK);
     config.securityType = WIFI_SEC_TYPE_PSK;
     config.band = HOTSPOT_BAND_TYPE_2G;
     config.channelNum = 7;

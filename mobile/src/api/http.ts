@@ -47,7 +47,7 @@ function rawRequest<T>(path: string, options: RequestOptions, token: string | nu
   });
 }
 
-function refreshAccessToken(): Promise<string | null> {
+export function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
   const refreshToken = uni.getStorageSync(REFRESH_KEY);
   if (!refreshToken) return Promise.resolve(null);

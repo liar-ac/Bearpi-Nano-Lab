@@ -90,7 +90,7 @@ begin:
 		message.qos = 2;
 		message.retained = 0;
 		message.payload = payload;
-		sprintf(payload, "message number %d", count);
+		snprintf(payload, sizeof(payload), "message number %d", count);
 		message.payloadlen = strlen(payload);
 
 		if ((rc = MQTTPublish(&client, "pubtopic", &message)) != 0){
