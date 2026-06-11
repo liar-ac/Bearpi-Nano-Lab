@@ -145,11 +145,13 @@ int WifiConnect(const char *ssid, const char *psk)
     printf("********************\r\n");
 
     //连接指定的WiFi热点
+    int ssidFound = 0;
     for(unsigned int i = 0; i < scanCount; i++)
     {
         if (strcmp(ssid, info[i].ssid) == 0)
         {
             int result;
+            ssidFound = 1;
 
             printf("Select:%3d wireless, Waiting...\r\n", i+1);
 
@@ -170,15 +172,15 @@ int WifiConnect(const char *ssid, const char *psk)
                     g_lwip_netif = netifapi_netif_find(SELECT_WLAN_PORT);
                     break;
                 }
+                printf("WiFi connect to %s failed\r\n", ssid);
             }
         }
+    }
 
-        if(i == scanCount-1)
-        {
-            printf("ERROR: No wifi as expected\r\n");
-            free(info);
-            return -1;
-        }
+    if (!ssidFound) {
+        printf("ERROR: WiFi SSID '%s' not found in scan results\r\n", ssid);
+        free(info);
+        return -1;
     }
      //启动DHCP
     if (g_lwip_netif == NULL) {

@@ -917,34 +917,40 @@ static const char *FindJsonValueEnd(const char *start)
 
 static int HasParamValue(const char *json, const char *key, const char *value)
 {
-    const char *keyPos = strstr(json, key);
+    /* Build quoted key pattern: "key" */
+    char keyPattern[64];
+    int kLen = snprintf(keyPattern, sizeof(keyPattern), "\"%s\"", key);
+    if (kLen <= 0 || kLen >= (int)sizeof(keyPattern)) {
+        return 0;
+    }
+
+    const char *keyPos = strstr(json, keyPattern);
     if (keyPos == NULL) {
         return 0;
     }
 
-    const char *colon = strchr(keyPos, ':');
+    const char *colon = strchr(keyPos + kLen, ':');
     if (colon == NULL) {
         return 0;
     }
 
-    const char *end = FindJsonValueEnd(colon);
-    const char *p = colon;
-    while (1) {
-        const char *valuePos = strstr(p, value);
-        if (valuePos == NULL) {
-            return 0;
-        }
-        if (end != NULL && valuePos >= end) {
-            return 0;
-        }
-        char after = valuePos[strlen(value)];
-        if (after == ',' || after == '}' || after == ']' || after == '"' ||
-            after == ' ' || after == '\t' || after == '\r' ||
-            after == '\n' || after == '\0') {
-            return 1;
-        }
-        p = valuePos + 1;
+    /* Build quoted value pattern: "value" */
+    char valuePattern[32];
+    int vLen = snprintf(valuePattern, sizeof(valuePattern), "\"%s\"", value);
+    if (vLen <= 0 || vLen >= (int)sizeof(valuePattern)) {
+        return 0;
     }
+
+    /* Search for "value" between colon and end of this JSON value */
+    const char *end = FindJsonValueEnd(colon);
+    const char *valuePos = strstr(colon, valuePattern);
+    if (valuePos == NULL) {
+        return 0;
+    }
+    if (end != NULL && valuePos >= end) {
+        return 0;
+    }
+    return 1;
 }
 
 static int ApplyOverrideValue(const char *response, const char *key, int *target)

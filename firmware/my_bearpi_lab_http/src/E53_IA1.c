@@ -239,9 +239,11 @@ void E53_IA1_Read_Data(void)
     if( !tmp ) /* value is ture */
     {
         dat = ((uint16_t)data[0] << 8) | data[1];
-        E53_IA1_Data.Temperature = SHT3x_CalcTemperatureC( dat );    
+        E53_IA1_Data.Temperature = SHT3x_CalcTemperatureC( dat );
+    } else {
+        printf("[E53_IA1] SHT30 temperature CRC failed, keeping previous value\r\n");
     }
-    
+
     //    /* check humidity */
     data[0] = SHT3X_Data_Buffer[3];
     data[1] = SHT3X_Data_Buffer[4];
@@ -251,7 +253,9 @@ void E53_IA1_Read_Data(void)
     if( !tmp ) /* value is ture */
     {
         dat = ((uint16_t)data[0] << 8) | data[1];
-        E53_IA1_Data.Humidity = SHT3x_CalcRH( dat );    
+        E53_IA1_Data.Humidity = SHT3x_CalcRH( dat );
+    } else {
+        printf("[E53_IA1] SHT30 humidity CRC failed, keeping previous value\r\n");
     }
     	    
 }
