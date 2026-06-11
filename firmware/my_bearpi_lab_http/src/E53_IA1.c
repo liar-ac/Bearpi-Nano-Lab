@@ -188,9 +188,9 @@ static float SHT3x_CalcRH(uint16_t u16sRH)
 ***************************************************************/
 void E53_IA1_Init(void)
 {
+	E53_IA1_IO_Init();
 	SHT30_reset();
 	usleep(2000);
-	E53_IA1_IO_Init();
 	Init_BH1750();
     Init_SHT30();
 }
