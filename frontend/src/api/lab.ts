@@ -66,7 +66,7 @@ export function register(payload: { username: string; password: string; name?: s
 
 export function fetchAccountUsers() {
   if (USE_MOCK) return mockFetchAccountUsers();
-  return request<AccountUser[]>('/auth/users');
+  return request<PagedResponse<AccountUser>>('/auth/users').then(normalizeListResponse);
 }
 
 export function updateAccountUserRole(userId: number, role: UserRole) {
@@ -187,7 +187,7 @@ export function fetchAuditLogs(params: { action?: string; limit?: number; offset
 
 export function fetchRules() {
   if (USE_MOCK) return mockFetchRules();
-  return request<RuleConfig[]>('/rules');
+  return request<PagedResponse<RuleConfig>>('/rules').then(normalizeListResponse);
 }
 
 export function updateRule(sensorId: number, payload: { min?: number | null; max?: number | null }) {

@@ -102,6 +102,13 @@
         "navigationBarTitleText": "用户权限",
         "enablePullDownRefresh": true
       }
+    },
+    {
+      "path": "pages/screen/index",
+      "style": {
+        "navigationBarTitleText": "实时大屏",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

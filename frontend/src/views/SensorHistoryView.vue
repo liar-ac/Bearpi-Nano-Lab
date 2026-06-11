@@ -50,19 +50,22 @@ async function loadMeta() {
   }
 }
 
-async function search() {
+async function search(seq?: number) {
   loading.value = true;
   error.value = '';
   try {
-    data.value = await fetchHistory(sensorId.value, {
+    const result = await fetchHistory(sensorId.value, {
       start: range.value[0].toISOString(),
       end: range.value[1].toISOString(),
       interval: interval.value
     });
+    if (seq !== undefined && seq !== searchSeq) return;
+    data.value = result;
   } catch (cause) {
+    if (seq !== undefined && seq !== searchSeq) return;
     error.value = cause instanceof Error ? cause.message : '历史数据查询失败';
   } finally {
-    loading.value = false;
+    if (seq === undefined || seq === searchSeq) loading.value = false;
   }
 }
 
@@ -100,9 +103,11 @@ watch([deviceId, sensorId], async () => {
   data.value = null;
 });
 
+let searchSeq = 0;
+
 watch([interval, range], () => {
   if (data.value !== null) {
-    search();
+    search(++searchSeq);
   }
 });
 </script>

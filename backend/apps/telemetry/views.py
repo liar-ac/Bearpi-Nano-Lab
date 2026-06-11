@@ -68,7 +68,7 @@ class SimulateRealtimeView(APIView):
             return Response({"detail": "模拟接口仅在开发环境可用"}, status=403)
         sensor_id = request.data.get("sensor_id")
         sensor = get_object_or_404(Sensor.objects.select_related("device"), pk=sensor_id)
-        previous = sensor.latest_value or 1
+        previous = sensor.latest_value if sensor.latest_value is not None else 1
         value = round(previous + random.uniform(-0.8, 0.8), 3)
         ts = timezone.now()
 
@@ -236,6 +236,11 @@ def parse_optional_datetime(value):
         raise ValidationError({"ts": "ISO8601 datetime is required"})
     if timezone.is_naive(parsed):
         parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    now = timezone.now()
+    if parsed > now + timedelta(hours=24):
+        raise ValidationError({"ts": "timestamp is more than 24 hours in the future"})
+    if parsed < now - timedelta(hours=24):
+        raise ValidationError({"ts": "timestamp is more than 24 hours in the past"})
     return parsed
 
 

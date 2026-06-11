@@ -22,7 +22,9 @@ async function submit() {
   try {
     await auth.login(username.value.trim(), password.value);
     ElMessage.success('登录成功');
-    router.replace(String(route.query.redirect ?? '/dashboard'));
+    const redirect = route.query.redirect;
+    const target = Array.isArray(redirect) ? redirect[0] : (redirect ?? '/dashboard');
+    router.replace(String(target));
   } catch (cause) {
     ElMessage.error(cause instanceof Error ? cause.message : '登录失败');
   } finally {

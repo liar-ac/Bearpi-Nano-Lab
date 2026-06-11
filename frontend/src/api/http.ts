@@ -111,6 +111,6 @@ export async function request<T>(path: string, options: RequestInit = {}, signal
     throw new ApiError(message, response.status);
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return null as unknown as T;
   return response.json() as Promise<T>;
 }

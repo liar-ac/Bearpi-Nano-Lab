@@ -434,18 +434,10 @@ class AiHealthView(APIView):
 
     def get(self, request):
         api_key = settings.XIAOMI_MIMO_API_KEY
-        raw_url = settings.XIAOMI_MIMO_API_URL
         configured = bool(api_key and api_key not in ("your-api-key-here", "your-token-plan-api-key-here"))
         return Response({
             "configured": configured,
-            "provider": "xiaomi-mimo",
-            "raw_url": raw_url,
-            "normalized_url": normalize_mimo_anthropic_url(raw_url) if configured else "",
-            "url_host": _api_url_host(raw_url),
             "model": settings.XIAOMI_MIMO_MODEL,
-            "timeout": settings.XIAOMI_MIMO_TIMEOUT,
-            "debug": settings.DEBUG,
-            "debug_fallback": _debug_fallback_enabled(),
         })
 
 
@@ -675,10 +667,10 @@ class AiCommandParseView(APIView):
         reply = result.data.get("reply", "")
         try:
             # Try to extract JSON from the reply
-            import re
-            json_match = re.search(r'\{[^}]+\}', reply)
-            if json_match:
-                parsed = json.loads(json_match.group())
+            start = reply.find('{')
+            end = reply.rfind('}')
+            if start != -1 and end != -1 and end > start:
+                parsed = json.loads(reply[start:end + 1])
             else:
                 parsed = {"detected": False, "explanation": "无法解析指令"}
         except (json.JSONDecodeError, ValueError):

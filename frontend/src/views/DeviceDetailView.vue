@@ -114,16 +114,22 @@ const controlStrategies = computed(() => [
 ]);
 
 async function load() {
+  loadAbort?.abort();
+  const controller = new AbortController();
+  loadAbort = controller;
   loading.value = true;
   error.value = '';
   try {
     device.value = await fetchDevice(deviceId.value);
+    if (controller.signal.aborted) return;
     commandLogs.value = await fetchCommands(deviceId.value);
+    if (controller.signal.aborted) return;
     syncActuatorState(commandLogs.value);
   } catch (cause) {
+    if (controller.signal.aborted) return;
     error.value = cause instanceof Error ? cause.message : '设备详情加载失败';
   } finally {
-    loading.value = false;
+    if (!controller.signal.aborted) loading.value = false;
   }
 }
 
@@ -223,6 +229,7 @@ async function setActuatorOverride(key: OverrideKey, mode: OverrideMode) {
 }
 
 let refreshTimer: number | null = null;
+let loadAbort: AbortController | null = null;
 
 onMounted(() => {
   void load();
@@ -236,6 +243,7 @@ onBeforeUnmount(() => {
     window.clearInterval(refreshTimer);
     refreshTimer = null;
   }
+  loadAbort?.abort();
 });
 
 watch(deviceId, () => {

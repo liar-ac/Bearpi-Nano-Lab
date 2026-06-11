@@ -543,6 +543,13 @@ static int HttpPostJson(const char *path, const char *json, char *response, int 
         return -1;
     }
 
+    char *body = strstr(response, "\r\n\r\n");
+    if (body != NULL) {
+        body += 4;
+        int bodyLen = total - (body - response);
+        memmove(response, body, bodyLen + 1);
+    }
+
     return 0;
 }
 
@@ -694,12 +701,13 @@ static int ReportTelemetry(void)
     int jsonLen = snprintf(
         json,
         sizeof(json),
-        "{\"sn\":\"%s\",\"metrics\":{\"temp\":%.2f,\"hum\":%.2f,\"light\":%.2f,\"motor\":%d,\"voltage\":%.2f,\"current\":%.2f,\"power\":%.2f,\"voltage_sampled\":%d,\"current_sampled\":%d,\"power_sampled\":%d,\"power_mcu\":%.2f,\"power_wifi\":%.2f,\"power_sensor\":%.2f,\"power_motor\":%.2f,\"power_light\":%.2f}}",
+        "{\"sn\":\"%s\",\"metrics\":{\"temp\":%.2f,\"hum\":%.2f,\"light\":%.2f,\"motor\":%d,\"fill_light\":%d,\"voltage\":%.2f,\"current\":%.2f,\"power\":%.2f,\"voltage_sampled\":%d,\"current_sampled\":%d,\"power_sampled\":%d,\"power_mcu\":%.2f,\"power_wifi\":%.2f,\"power_sensor\":%.2f,\"power_motor\":%.2f,\"power_light\":%.2f}}",
         BEARPI_DEVICE_SN,
         s.temp,
         s.hum,
         s.light,
         s.motorOn,
+        s.fillLightOn,
         s.voltage,
         s.current,
         s.power,
@@ -740,11 +748,22 @@ static int ReportTelemetry(void)
 
 static int ExtractFirstCommandId(const char *response)
 {
-    const char *id = strstr(response, "\"id\":");
+    const char *body = strstr(response, "\r\n\r\n");
+    const char *search = body ? body + 4 : response;
+    const char *id = strstr(search, "\"id\":");
     if (id == NULL) {
         return 0;
     }
-    return atoi(id + 5);
+    const char *numStart = id + 5;
+    while (*numStart == ' ' || *numStart == '\t') {
+        numStart++;
+    }
+    char *endPtr = NULL;
+    long val = strtol(numStart, &endPtr, 10);
+    if (endPtr == numStart || val <= 0 || val > 0x7FFFFFFF) {
+        return 0;
+    }
+    return (int)val;
 }
 
 static const char *FindJsonStringValue(const char *json, const char *key)
@@ -909,8 +928,23 @@ static int HasParamValue(const char *json, const char *key, const char *value)
     }
 
     const char *end = FindJsonValueEnd(colon);
-    const char *valuePos = strstr(colon, value);
-    return valuePos != NULL && (end == NULL || valuePos < end);
+    const char *p = colon;
+    while (1) {
+        const char *valuePos = strstr(p, value);
+        if (valuePos == NULL) {
+            return 0;
+        }
+        if (end != NULL && valuePos >= end) {
+            return 0;
+        }
+        char after = valuePos[strlen(value)];
+        if (after == ',' || after == '}' || after == ']' ||
+            after == ' ' || after == '\t' || after == '\r' ||
+            after == '\n' || after == '\0') {
+            return 1;
+        }
+        p = valuePos + 1;
+    }
 }
 
 static int ApplyOverrideValue(const char *response, const char *key, int *target)

@@ -6,6 +6,22 @@ const props = defineProps<{
   dataSource?: string;
 }>();
 
+function openLink(url: string) {
+  // #ifdef H5
+  window.open(url, '_blank');
+  // #endif
+  // #ifndef H5
+  uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => {
+    uni.setClipboardData({
+      data: url,
+      success: () => {
+        uni.showToast({ title: '链接已复制到剪贴板', icon: 'none' });
+      }
+    });
+  }});
+  // #endif
+}
+
 const sourceLabel = computed(() => {
   switch (props.dataSource) {
     case 'demo': return '数据来源：演示数据库';
@@ -116,6 +132,7 @@ const parsedLines = computed(() => parseLines(props.content));
         <template v-for="(seg, si) in line.segments" :key="si">
           <text v-if="seg.type === 'bold'" class="md-bold">{{ seg.content }}</text>
           <text v-else-if="seg.type === 'code'" class="md-code">{{ seg.content }}</text>
+          <text v-else-if="seg.type === 'link'" class="md-link" @click="openLink(seg.href!)">{{ seg.content }}</text>
           <text v-else>{{ seg.content }}</text>
         </template>
       </view>
@@ -126,6 +143,7 @@ const parsedLines = computed(() => parseLines(props.content));
           <template v-for="(seg, si) in line.segments" :key="si">
             <text v-if="seg.type === 'bold'" class="md-bold">{{ seg.content }}</text>
             <text v-else-if="seg.type === 'code'" class="md-code">{{ seg.content }}</text>
+            <text v-else-if="seg.type === 'link'" class="md-link" @click="openLink(seg.href!)">{{ seg.content }}</text>
             <text v-else>{{ seg.content }}</text>
           </template>
         </view>
@@ -139,6 +157,7 @@ const parsedLines = computed(() => parseLines(props.content));
         <template v-for="(seg, si) in line.segments" :key="si">
           <text v-if="seg.type === 'bold'" class="md-bold">{{ seg.content }}</text>
           <text v-else-if="seg.type === 'code'" class="md-code">{{ seg.content }}</text>
+          <text v-else-if="seg.type === 'link'" class="md-link" @click="openLink(seg.href!)">{{ seg.content }}</text>
           <text v-else>{{ seg.content }}</text>
         </template>
       </view>
@@ -207,6 +226,12 @@ const parsedLines = computed(() => parseLines(props.content));
   color: #245d99;
   font-size: 24rpx;
   font-family: monospace;
+}
+
+.md-link {
+  color: #245d99;
+  font-size: 26rpx;
+  text-decoration: underline;
 }
 
 .md-codeblock {

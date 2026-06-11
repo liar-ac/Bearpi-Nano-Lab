@@ -12,6 +12,7 @@ import { alarmLevelLabel, relativeTime, statusLabel } from '@/utils/format';
 const store = useDeviceStore();
 const auth = useAuthStore();
 const alarms = ref<Alarm[]>([]);
+const dashboardLoading = ref(false);
 let unsubscribe: (() => void) | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -70,11 +71,17 @@ onPullDownRefresh(async () => {
 });
 
 async function load() {
-  await store.loadDevices({ status: 'all' });
+  if (dashboardLoading.value) return;
+  dashboardLoading.value = true;
   try {
-    alarms.value = await fetchAlarms();
-  } catch {
-    alarms.value = [];
+    await store.loadDevices({ status: 'all' });
+    try {
+      alarms.value = await fetchAlarms();
+    } catch {
+      alarms.value = [];
+    }
+  } finally {
+    dashboardLoading.value = false;
   }
 }
 

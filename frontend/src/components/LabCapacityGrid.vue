@@ -22,11 +22,12 @@ function isFilteredOut(slot: LabSlot) {
     <RouterLink
       v-for="slot in slots"
       :key="slot.slotNo"
-      :to="slot.device ? `/devices/${slot.device.id}` : '/dashboard'"
+      :to="slot.device ? `/devices/${slot.device.id}` : ''"
       class="lab-slot"
       :class="[slot.status, { 'has-device': Boolean(slot.device), 'filtered-out': isFilteredOut(slot) }]"
       :aria-label="slotTitle(slot)"
       :title="slotTitle(slot)"
+      :event="slot.device ? 'click' : ''"
     >
       <span class="slot-no">{{ String(slot.slotNo).padStart(3, '0') }}</span>
       <span v-if="slot.device" class="slot-device" />

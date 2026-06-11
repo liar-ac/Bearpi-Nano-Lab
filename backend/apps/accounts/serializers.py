@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -71,6 +72,12 @@ class RegisterSerializer(serializers.Serializer):
         username = validated_data["username"]
         password = validated_data["password"]
         name = validated_data.get("name", "").strip()
+        try:
+            validate_password(password)
+        except serializers.ValidationError:
+            raise
+        except Exception as exc:
+            raise serializers.ValidationError({"password": list(exc)})
         try:
             with transaction.atomic():
                 user = User.objects.create_user(username=username, password=password)

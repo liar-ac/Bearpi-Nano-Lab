@@ -498,7 +498,7 @@ class DeviceCommandAckView(APIView):
         serializer.is_valid(raise_exception=True)
 
         device = resolve_device(serializer.validated_data)
-        command = DeviceCommand.objects.filter(
+        command = DeviceCommand.objects.select_for_update().filter(
             id=serializer.validated_data["command_id"],
             device=device,
         ).first()
@@ -507,6 +507,9 @@ class DeviceCommandAckView(APIView):
 
         if command.status in [DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED]:
             return Response(DeviceCommandSerializer(command).data)
+
+        if command.status != DeviceCommand.Status.SENT:
+            raise ValidationError({"command_id": f"command is in '{command.status}' status, expected 'sent'"})
 
         command.status = serializer.validated_data["status"]
         command.ack_at = serializer.validated_data.get("ack_at", timezone.now())

@@ -42,9 +42,9 @@ static void OnHotspotStaJoinHandler(StationInfo *info);
 static void OnHotspotStateChangedHandler(int state);
 static void OnHotspotStaLeaveHandler(StationInfo *info);
 
-static int g_staScanSuccess = 0;
-static int g_ConnectSuccess = 0;
-static int ssid_count = 0;
+static volatile int g_staScanSuccess = 0;
+static volatile int g_ConnectSuccess = 0;
+static volatile int ssid_count = 0;
 WifiEvent g_wifiEventHandler = {0};
 WifiErrorCode error;
 static struct netif *g_lwip_netif = NULL;
@@ -78,6 +78,11 @@ int WifiConnect(const char *ssid, const char *psk)
     printf("<--System Init-->\r\n");
 
     g_ConnectSuccess = 0;
+
+    if (g_lwip_netif != NULL) {
+        dhcp_stop(g_lwip_netif);
+        g_lwip_netif = NULL;
+    }
 
     //初始化WIFI
     WiFiInit();
@@ -130,15 +135,16 @@ int WifiConnect(const char *ssid, const char *psk)
         return -1;
     }
     //打印WiFi列表
+    unsigned int scanCount = (unsigned int)ssid_count < size ? (unsigned int)ssid_count : size;
     printf("********************\r\n");
-    for(uint8_t i = 0; i < ssid_count; i++)
+    for(unsigned int i = 0; i < scanCount; i++)
     {
         printf("no:%03d, ssid:%-30s, rssi:%5d\r\n", i+1, info[i].ssid, info[i].rssi/100);
     }
     printf("********************\r\n");
-    
+
     //连接指定的WiFi热点
-    for(uint8_t i = 0; i < ssid_count; i++)
+    for(unsigned int i = 0; i < scanCount; i++)
     {
         if (strcmp(ssid, info[i].ssid) == 0)
         {
@@ -166,7 +172,7 @@ int WifiConnect(const char *ssid, const char *psk)
             }
         }
 
-        if(i == ssid_count-1)
+        if(i == scanCount-1)
         {
             printf("ERROR: No wifi as expected\r\n");
             free(info);
@@ -203,6 +209,8 @@ int WifiConnect(const char *ssid, const char *psk)
     if (dhcpTimeout <= 0)
     {
         printf("<-- DHCP state:TIMEOUT -->\r\n");
+        dhcp_stop(g_lwip_netif);
+        g_lwip_netif = NULL;
         free(info);
         return -1;
     }

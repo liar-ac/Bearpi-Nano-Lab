@@ -97,6 +97,7 @@ onMounted(async () => {
 });
 
 watch([deviceId, sensorId], async () => {
+  points.value = [];
   await load();
 });
 
