@@ -56,8 +56,8 @@ class AlarmAckView(APIView):
             alarm = get_object_or_404(Alarm.objects.select_related("device", "sensor").select_for_update(), pk=alarm_id)
             if alarm.status == Alarm.Status.CLOSED:
                 return Response({"detail": "已关闭的告警无法确认"}, status=400)
-        alarm.status = Alarm.Status.ACKNOWLEDGED
-        alarm.save(update_fields=["status"])
+            alarm.status = Alarm.Status.ACKNOWLEDGED
+            alarm.save(update_fields=["status"])
         record_audit(
             request,
             AuditLog.Action.ALARM_ACK,
