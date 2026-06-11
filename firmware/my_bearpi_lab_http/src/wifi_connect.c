@@ -55,7 +55,7 @@ const char *GetGatewayIp(void)
     if (g_lwip_netif == NULL) {
         return NULL;
     }
-    const ip4_addr_t *gw = &g_lwip_netif->gw;
+    const ip4_addr_t *gw = ip_2_ip4(&g_lwip_netif->gw);
     if (ip4_addr_isany(gw)) {
         return NULL;
     }
