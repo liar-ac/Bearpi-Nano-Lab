@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
-import { sendAiQuery } from '@/api/lab';
+import { sendAiQuery, parseAiCommand, sendCommand, sendBulkCommand } from '@/api/lab';
+import type { AiCommandResult } from '@/api/lab';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   dataSource?: string;
   diagnostic?: Record<string, unknown> | null;
+  command?: AiCommandResult & { _bulk?: boolean };
+  commandStatus?: 'confirming' | 'executing' | 'executed' | 'rejected' | 'error';
 }
 
 const visible = ref(false);
@@ -18,9 +21,30 @@ const messages = ref<ChatMessage[]>([]);
 const exampleQuestions = [
   '哪块板的功耗最高?',
   'A001板的温度怎么样?',
-  '现在有哪些告警?',
-  '哪些板是离线状态?',
+  '把所有电机打开',
+  '关闭全部灯',
 ];
+
+// ── Command detection ────────────────────────────────────────
+const cmdKw = ['打开', '关闭', '关掉', '开', '关', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
+const bulkKw = ['所有', '全部', '全部的', '所有的', '每个', '全都'];
+
+function looksCmd(t: string): boolean {
+  if (!cmdKw.some((k) => t.includes(k))) return false;
+  return /[aA]\d{3}|槽位\d+|bearpi|所有|全部|全都|每个/i.test(t);
+}
+
+function parseBulkIntent(text: string): { actuator: 'motor' | 'light'; mode: 'auto' | 'on' | 'off' } | null {
+  const t = text.toLowerCase();
+  let actuator: 'motor' | 'light' | null = null;
+  let mode: 'auto' | 'on' | 'off' | null = null;
+  if (/(电机|风扇|通风|motor)/.test(t)) actuator = 'motor';
+  else if (/(灯|补光|照明|light)/.test(t)) actuator = 'light';
+  if (/(打开|开|开启|点亮|on)/.test(t)) mode = 'on';
+  else if (/(关闭|关|关掉|熄灭|off)/.test(t)) mode = 'off';
+  else if (/(自动|auto)/.test(t)) mode = 'auto';
+  return actuator && mode ? { actuator, mode } : null;
+}
 
 const canSend = computed(() => input.value.trim().length > 0 && !loading.value);
 
@@ -33,6 +57,13 @@ async function send() {
   loading.value = true;
 
   await nextTick();
+
+  // Check if this looks like a command
+  if (looksCmd(question)) {
+    loading.value = false;
+    await detectCmd(messages.value.length - 1);
+    return;
+  }
 
   try {
     const history = messages.value
@@ -58,6 +89,85 @@ async function send() {
   } finally {
     loading.value = false;
     await nextTick();
+  }
+}
+
+async function detectCmd(idx: number) {
+  const user = messages.value[idx];
+  if (!user) return;
+  const isBulk = bulkKw.some((k) => user.content.includes(k));
+  const cmd: ChatMessage = { role: 'assistant', content: '正在解析指令…', commandStatus: 'confirming' };
+  messages.value.splice(idx + 1, 0, cmd);
+
+  try {
+    if (isBulk) {
+      const intent = parseBulkIntent(user.content);
+      if (intent) {
+        const al = intent.actuator === 'motor' ? '电机' : '补光灯';
+        const ml = intent.mode === 'on' ? '打开' : intent.mode === 'off' ? '关闭' : '自动';
+        cmd.content = `检测到批量控制指令: ${al} ${ml}（全部设备）`;
+        cmd.command = { detected: true, actuator: intent.actuator, mode: intent.mode, device_sn: '全部设备', explanation: `批量${al}${ml}`, _bulk: true } as AiCommandResult & { _bulk: boolean };
+      } else {
+        cmd.content = '未识别为设备控制指令';
+        cmd.commandStatus = 'rejected';
+      }
+    } else {
+      const r = await parseAiCommand(user.content);
+      cmd.command = r;
+      if (r.detected && r.device_id) {
+        cmd.content = `检测到控制指令: ${r.explanation || ''}`;
+      } else {
+        cmd.content = r.explanation || '未识别为设备控制指令';
+        cmd.commandStatus = 'rejected';
+        cmd.command = undefined;
+      }
+    }
+  } catch {
+    cmd.content = '指令解析失败';
+    cmd.commandStatus = 'error';
+  }
+}
+
+async function execCmd(idx: number) {
+  const cmd = messages.value[idx];
+  if (!cmd?.command) return;
+  cmd.commandStatus = 'executing';
+  cmd.content = '正在执行…';
+
+  try {
+    const { actuator, mode } = cmd.command;
+    const isBulk = cmd.command._bulk;
+
+    if (isBulk) {
+      await sendBulkCommand({ target: 'all', actuator: actuator as 'motor' | 'light', mode: (mode as 'auto' | 'on' | 'off') ?? 'on' });
+      const al = actuator === 'motor' ? '电机' : '补光灯';
+      const ml = mode === 'on' ? '打开' : mode === 'off' ? '关闭' : '自动';
+      cmd.commandStatus = 'executed';
+      cmd.content = `已批量下发: 全部设备 ${al} ${ml}`;
+      uni.showToast({ title: '批量指令已下发', icon: 'success' });
+    } else {
+      if (!cmd.command.device_id) return;
+      const pk = actuator === 'motor' ? 'motor_override' : 'light_override';
+      const p: Record<string, string | number | boolean> = {};
+      p[pk] = mode ?? 'on';
+      await sendCommand(cmd.command.device_id, { type: 'set_param', params: p });
+      cmd.commandStatus = 'executed';
+      const al = actuator === 'motor' ? '电机' : '补光灯';
+      const ml = mode === 'on' ? '打开' : mode === 'off' ? '关闭' : '自动';
+      cmd.content = `已下发: ${cmd.command.device_sn} ${al} ${ml}`;
+      uni.showToast({ title: '指令已下发', icon: 'success' });
+    }
+  } catch (e) {
+    cmd.commandStatus = 'error';
+    cmd.content = `执行失败: ${e instanceof Error ? e.message : '未知错误'}`;
+  }
+}
+
+function rejectCmd(idx: number) {
+  const m = messages.value[idx];
+  if (m) {
+    m.commandStatus = 'rejected';
+    m.content = '已取消';
   }
 }
 
@@ -125,6 +235,12 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
               <view v-if="msg.diagnostic" class="diagnostic-box">
                 <text class="diagnostic-title">调试信息</text>
                 <text class="diagnostic-text">{{ formatDiagnostic(msg.diagnostic) }}</text>
+              </view>
+              <view v-if="msg.command?.detected && msg.commandStatus === 'confirming'" class="cmd-confirm">
+                <view class="cmd-btns">
+                  <wd-button size="small" type="primary" @click="execCmd(index)">确认执行</wd-button>
+                  <wd-button size="small" plain @click="rejectCmd(index)">取消</wd-button>
+                </view>
               </view>
             </template>
           </view>
@@ -322,5 +438,16 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
   height: 76rpx;
   flex-shrink: 0;
   font-weight: 700;
+}
+
+.cmd-confirm {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #e5e9f0;
+}
+
+.cmd-btns {
+  display: flex;
+  gap: 16rpx;
 }
 </style>
