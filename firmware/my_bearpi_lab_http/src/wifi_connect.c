@@ -138,6 +138,7 @@ int WifiConnect(const char *ssid, const char *psk)
 
             if (AddDeviceConfig(&select_ap_config, &result) == WIFI_SUCCESS)
             {
+                g_ConnectSuccess = 0;
                 if (ConnectTo(result) == WIFI_SUCCESS && WaitConnectResult() == 1)
                 {
                     printf("WiFi connect succeed!\r\n");
@@ -202,6 +203,7 @@ static void WiFiInit(void)
     g_wifiEventHandler.OnHotspotStaJoin = OnHotspotStaJoinHandler;
     g_wifiEventHandler.OnHotspotStaLeave = OnHotspotStaLeaveHandler;
     g_wifiEventHandler.OnHotspotStateChanged = OnHotspotStateChangedHandler;
+    UnRegisterWifiEvent(&g_wifiEventHandler);
     error = RegisterWifiEvent(&g_wifiEventHandler);
     if (error != WIFI_SUCCESS)
     {

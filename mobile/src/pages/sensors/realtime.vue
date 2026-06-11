@@ -17,6 +17,7 @@ const simulating = ref(false);
 const error = ref('');
 const lastAppendAt = ref(0);
 let unsubscribe: (() => void) | null = null;
+let alive = true;
 
 const maxValue = computed(() => Math.max(...points.value.map((point) => Math.abs(point.value)), 1));
 const chartPoints = computed(() => points.value.slice(-36));
@@ -25,10 +26,12 @@ onLoad(async (query) => {
   deviceId.value = Number(query?.deviceId);
   sensorId.value = Number(query?.sensorId);
   await load();
+  if (!alive) return;
   unsubscribe = subscribeRealtime(appendRealtimePoint);
 });
 
 onUnload(() => {
+  alive = false;
   unsubscribe?.();
   unsubscribe = null;
 });

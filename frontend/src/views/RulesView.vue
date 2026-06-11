@@ -121,27 +121,36 @@ const aiLoading = ref(false);
 const aiReply = ref('');
 const aiError = ref('');
 const aiDataSource = ref('');
+const aiAbortController = ref<AbortController | null>(null);
 
 async function runAiSuggestion() {
+  aiAbortController.value?.abort();
+  aiAbortController.value = new AbortController();
   aiVisible.value = true;
   aiLoading.value = true;
   aiReply.value = '';
   aiError.value = '';
   aiDataSource.value = '';
   try {
-    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext()) as { reply: string; data_source?: string };
+    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext(), aiAbortController.value.signal) as { reply: string; data_source?: string };
     aiReply.value = result.reply;
     aiDataSource.value = result.data_source ?? '';
   } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') return;
     aiError.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
     ElMessage.error(aiError.value);
   } finally {
     aiLoading.value = false;
+    aiAbortController.value = null;
   }
 }
 
 function closeAiDialog() {
-  if (aiLoading.value) return;
+  if (aiAbortController.value) {
+    aiAbortController.value.abort();
+    aiAbortController.value = null;
+  }
+  aiLoading.value = false;
   aiVisible.value = false;
 }
 

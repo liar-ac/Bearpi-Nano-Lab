@@ -16,6 +16,7 @@ const selectedLayer = ref<TopologyLayer>('status');
 const selectedSlotNo = ref(1);
 let unsubscribe: (() => void) | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+let alive = true;
 
 const filters: Array<{ label: string; value: TopologyFilter }> = [
   { label: '全部', value: 'all' },
@@ -72,6 +73,7 @@ const selectedSlot = computed(
 
 onShow(async () => {
   await store.loadDevices({ status: 'all', includeInactive: true });
+  if (!alive) return;
   if (!unsubscribe) unsubscribe = subscribeRealtime(store.applyRealtime);
   if (!refreshTimer) {
     refreshTimer = setInterval(() => {
@@ -85,6 +87,7 @@ onHide(() => {
 });
 
 onUnload(() => {
+  alive = false;
   teardown();
 });
 

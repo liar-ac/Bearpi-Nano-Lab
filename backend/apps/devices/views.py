@@ -87,7 +87,7 @@ class DeviceCommandView(APIView):
     def get(self, request, device_id):
         device = get_object_or_404(Device, pk=device_id)
         commands = DeviceCommand.objects.filter(device=device).order_by("-created_at")[:200]
-        return Response(DeviceCommandSerializer(commands, many=True).data)
+        return Response({"count": len(commands), "results": DeviceCommandSerializer(commands, many=True).data})
 
     def post(self, request, device_id):
         device = get_object_or_404(Device, pk=device_id)

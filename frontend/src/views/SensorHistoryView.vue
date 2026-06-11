@@ -42,8 +42,12 @@ const alarmPoints = computed(() =>
 );
 
 async function loadMeta() {
-  device.value = await fetchDevice(deviceId.value);
-  sensor.value = device.value.sensors.find((item) => item.id === sensorId.value) ?? null;
+  try {
+    device.value = await fetchDevice(deviceId.value);
+    sensor.value = device.value.sensors.find((item) => item.id === sensorId.value) ?? null;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : '设备信息加载失败';
+  }
 }
 
 async function search() {

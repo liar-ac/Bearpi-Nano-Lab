@@ -463,6 +463,11 @@ static int HttpPostJson(const char *path, const char *json, char *response, int 
         return -1;
     }
 
+    struct timeval tv;
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     int requestLen = snprintf(
         request,
         sizeof(request),
@@ -731,12 +736,18 @@ static int ExtractFirstCommandId(const char *response)
 
 static const char *FindJsonStringValue(const char *json, const char *key)
 {
-    const char *keyPos = strstr(json, key);
+    char pattern[64];
+    int patLen = snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+    if (patLen <= 0 || patLen >= (int)sizeof(pattern)) {
+        return NULL;
+    }
+
+    const char *keyPos = strstr(json, pattern);
     if (keyPos == NULL) {
         return NULL;
     }
 
-    const char *colon = strchr(keyPos, ':');
+    const char *colon = strchr(keyPos + patLen, ':');
     if (colon == NULL) {
         return NULL;
     }
@@ -994,7 +1005,22 @@ static void BearPiLabTask(void)
         strlen(BEARPI_SERVER_HOST_FALLBACK) > 0 ? BEARPI_SERVER_HOST_FALLBACK : "none",
         BEARPI_DEVICE_SN);
 
-    WifiConnect(BEARPI_WIFI_SSID, BEARPI_WIFI_PASSWORD);
+    {
+        int wifiRetries = 3;
+        while (wifiRetries > 0) {
+            if (WifiConnect(BEARPI_WIFI_SSID, BEARPI_WIFI_PASSWORD) == 0) {
+                break;
+            }
+            wifiRetries--;
+            printf("[bearpi-lab] initial wifi connect failed, retries left: %d\r\n", wifiRetries);
+            if (wifiRetries > 0) {
+                sleep(3);
+            }
+        }
+        if (wifiRetries <= 0) {
+            printf("[bearpi-lab] wifi connect failed after all retries, entering main loop anyway\r\n");
+        }
+    }
     E53_IA1_Init();
 
     while (1) {

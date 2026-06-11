@@ -22,6 +22,8 @@ const trendError = ref('');
 const trendPoints = ref<Point[]>([]);
 let unsubscribe: (() => void) | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+let alive = true;
+let trendRequestId = 0;
 
 const boardPowerCodes = new Set(['voltage', 'current', 'power']);
 const modulePowerCodes = new Set(['power_mcu', 'power_wifi', 'power_sensor', 'power_motor', 'power_light']);
@@ -269,6 +271,7 @@ async function loadPowerTrend() {
     trendError.value = '';
     return;
   }
+  const localRequestId = ++trendRequestId;
   trendLoading.value = true;
   trendError.value = '';
   const end = new Date();
@@ -280,12 +283,14 @@ async function loadPowerTrend() {
       end: end.toISOString(),
       interval: range.interval
     });
+    if (localRequestId !== trendRequestId) return;
     trendPoints.value = response.points;
   } catch (cause) {
+    if (localRequestId !== trendRequestId) return;
     trendError.value = cause instanceof Error ? cause.message : '功耗趋势加载失败';
     trendPoints.value = [];
   } finally {
-    trendLoading.value = false;
+    if (localRequestId === trendRequestId) trendLoading.value = false;
   }
 }
 
@@ -307,6 +312,7 @@ function applyRealtime(message: RealtimeMessage) {
 
 onShow(async () => {
   await load();
+  if (!alive) return;
   if (!unsubscribe) unsubscribe = subscribeRealtime(applyRealtime);
   if (!refreshTimer) {
     refreshTimer = setInterval(() => {
@@ -320,6 +326,7 @@ onHide(() => {
 });
 
 onUnload(() => {
+  alive = false;
   teardown();
 });
 
