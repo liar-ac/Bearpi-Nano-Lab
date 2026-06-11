@@ -115,6 +115,7 @@ int WifiConnect(const char *ssid, const char *psk)
         //重置标志位
         ssid_count = 0;
         g_staScanSuccess = 0;
+        size = WIFI_SCAN_HOTSPOT_LIMIT;
 
         //开始扫描
         Scan();

@@ -546,8 +546,8 @@ static int HttpPostJson(const char *path, const char *json, char *response, int 
     char *body = strstr(response, "\r\n\r\n");
     if (body != NULL) {
         body += 4;
-        int bodyLen = total - (body - response);
-        memmove(response, body, bodyLen + 1);
+        int httpBodyLen = total - (body - response);
+        memmove(response, body, httpBodyLen + 1);
     }
 
     return 0;
@@ -938,7 +938,7 @@ static int HasParamValue(const char *json, const char *key, const char *value)
             return 0;
         }
         char after = valuePos[strlen(value)];
-        if (after == ',' || after == '}' || after == ']' ||
+        if (after == ',' || after == '}' || after == ']' || after == '"' ||
             after == ' ' || after == '\t' || after == '\r' ||
             after == '\n' || after == '\0') {
             return 1;
