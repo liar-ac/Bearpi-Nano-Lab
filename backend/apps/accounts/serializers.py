@@ -77,7 +77,7 @@ class RegisterSerializer(serializers.Serializer):
         except serializers.ValidationError:
             raise
         except Exception as exc:
-            raise serializers.ValidationError({"password": list(exc)})
+            raise serializers.ValidationError({"password": [str(exc)]})
         try:
             with transaction.atomic():
                 user = User.objects.create_user(username=username, password=password)

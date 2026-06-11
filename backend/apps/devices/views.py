@@ -127,6 +127,7 @@ def bulk_command_labels(actuator, mode):
     return actuator_label, mode_label
 
 
+@transaction.atomic
 def create_bulk_commands(devices, actuator, mode, sync_delay_ms, retry_of=None):
     param_key = "motor_override" if actuator == "motor" else "light_override"
     actuator_label, mode_label = bulk_command_labels(actuator, mode)

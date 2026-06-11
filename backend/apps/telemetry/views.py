@@ -129,7 +129,11 @@ class TelemetryIngestView(APIView):
             has_open_alarm = Alarm.objects.filter(device=device, status=Alarm.Status.NEW).exists()
             if device.status != Device.Status.MAINTENANCE:
                 device.status = Device.Status.WARNING if has_open_alarm else Device.Status.ONLINE
-                device.abnormal_reason = ""
+                if has_open_alarm:
+                    first_alarm = Alarm.objects.filter(device=device, status=Alarm.Status.NEW).order_by("created_at").first()
+                    device.abnormal_reason = first_alarm.message if first_alarm else ""
+                else:
+                    device.abnormal_reason = ""
             latest_ts = max(item["ts"] for item in points)
             device.last_seen = latest_ts
             device.save(update_fields=["status", "last_seen", "abnormal_reason"])
@@ -333,7 +337,7 @@ def upsert_alarm(sensor, ts, level, message):
         device=sensor.device,
         sensor=sensor,
         status=Alarm.Status.NEW,
-    ).first()
+    ).select_for_update().first()
     if alarm:
         alarm.ts = ts
         alarm.level = level

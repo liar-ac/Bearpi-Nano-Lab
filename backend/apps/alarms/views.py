@@ -51,9 +51,11 @@ class AlarmAckView(APIView):
     permission_classes = [CanAcknowledgeAlarm]
 
     def post(self, request, alarm_id):
-        alarm = get_object_or_404(Alarm.objects.select_related("device", "sensor"), pk=alarm_id)
-        if alarm.status == Alarm.Status.CLOSED:
-            return Response({"detail": "已关闭的告警无法确认"}, status=400)
+        from django.db import transaction
+        with transaction.atomic():
+            alarm = get_object_or_404(Alarm.objects.select_related("device", "sensor").select_for_update(), pk=alarm_id)
+            if alarm.status == Alarm.Status.CLOSED:
+                return Response({"detail": "已关闭的告警无法确认"}, status=400)
         alarm.status = Alarm.Status.ACKNOWLEDGED
         alarm.save(update_fields=["status"])
         record_audit(
