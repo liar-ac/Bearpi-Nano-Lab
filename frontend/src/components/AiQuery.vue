@@ -41,7 +41,6 @@ const queue = ref<string[]>([]);
 const generating = ref(false);
 const abortController = ref<AbortController | null>(null);
 const aiStatus = ref<'idle' | 'connecting' | 'thinking' | 'replying'>('idle');
-const autoScroll = ref(true);
 const inputFocused = ref(false);
 
 const examples = [
@@ -62,6 +61,7 @@ const currentSession = computed(() =>
 const msgs = computed(() => currentSession.value?.messages ?? []);
 const queueLen = computed(() => queue.value.length);
 const canSend = computed(() => input.value.trim().length > 0);
+const showScrollBtn = ref(false);
 
 const statusText = computed(() => {
   const dots = '.'.repeat((Date.now() / 600 | 0) % 4);
@@ -153,20 +153,26 @@ function ctxPrefix() {
 }
 
 // ── Scroll ────────────────────────────────────────────────────
+function isNearBottom(): boolean {
+  if (!chatBody.value) return true;
+  const { scrollTop, scrollHeight, clientHeight } = chatBody.value;
+  return scrollHeight - scrollTop - clientHeight < 120;
+}
+
 function scrollDown(force = false) {
   nextTick(() => {
     requestAnimationFrame(() => {
-      if (chatBody.value && (force || autoScroll.value)) {
+      if (!chatBody.value) return;
+      if (force || isNearBottom()) {
         chatBody.value.scrollTop = chatBody.value.scrollHeight;
+        showScrollBtn.value = false;
       }
     });
   });
 }
 
 function onScroll() {
-  if (!chatBody.value) return;
-  const { scrollTop, scrollHeight, clientHeight } = chatBody.value;
-  autoScroll.value = scrollHeight - scrollTop - clientHeight < 60;
+  showScrollBtn.value = !isNearBottom();
 }
 
 // ── Keyboard ──────────────────────────────────────────────────
@@ -209,7 +215,7 @@ async function ask(question: string) {
     msg.content = `请求失败: ${e instanceof Error ? e.message : '未知错误'}`; msg.status = 'error'; ElMessage.error(msg.content);
   } finally {
     if (abortController.value === ctrl) { abortController.value = null; generating.value = false; aiStatus.value = 'idle'; }
-    scrollDown(true);
+    scrollDown();
     if (!generating.value && queue.value.length) { const n = queue.value.shift()!; const qm = currentSession.value.messages.find((m) => m.status === 'queued'); if (qm) qm.status = 'done'; await nextTick(); ask(n); }
   }
 }
@@ -239,7 +245,7 @@ async function detectCmd(idx: number) {
   const user = currentSession.value.messages[idx]; if (!user) return;
   const isBulk = bulkKw.some((k) => user.content.includes(k));
   const cmd: ChatMessage = { id: nextId(), role: 'assistant', content: '正在解析指令…', ts: Date.now(), status: 'done', commandStatus: 'confirming' };
-  currentSession.value.messages.splice(idx + 1, 0, cmd); scrollDown(true);
+  currentSession.value.messages.splice(idx + 1, 0, cmd); scrollDown();
   try {
     if (isBulk) {
       const intent = parseBulkIntent(user.content);
@@ -260,7 +266,7 @@ async function detectCmd(idx: number) {
       else { cmd.content = r.explanation || '未识别为设备控制指令'; cmd.commandStatus = 'rejected'; cmd.command = undefined; }
     }
   } catch { cmd.content = '指令解析失败'; cmd.commandStatus = 'error'; }
-  scrollDown(true);
+  scrollDown();
 }
 
 async function execCmd(idx: number) {
@@ -289,7 +295,7 @@ async function execCmd(idx: number) {
       ElMessage.success('指令已下发');
     }
   } catch (e) { cmd.commandStatus = 'error'; cmd.content = `执行失败: ${e instanceof Error ? e.message : '未知错误'}`; }
-  scrollDown(true);
+  scrollDown();
 }
 
 function rejectCmd(idx: number) { if (currentSession.value) { const m = currentSession.value.messages[idx]; if (m) { m.commandStatus = 'rejected'; m.content = '已取消'; } } }
@@ -477,7 +483,7 @@ watch(input, () => nextTick(autoH));
         </div>
 
         <!-- Scroll btn -->
-        <button v-if="!autoScroll" class="scroll-btn" @click="scrollDown(true)">↓</button>
+        <button v-if="showScrollBtn" class="scroll-btn" @click="scrollDown(true)">↓</button>
 
         <!-- Input -->
         <div class="input-area" :class="{ focused: inputFocused }">
