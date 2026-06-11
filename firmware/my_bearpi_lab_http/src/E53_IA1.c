@@ -265,9 +265,9 @@ void E53_IA1_Read_Data(void)
 void Light_StatusSet(E53_IA1_Status_ENUM status)
 {
 	if(status == ON)
-		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_14, 1);//设置GPIO_2输出高电平点亮灯
+		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_14, 0);//设置GPIO_14输出低电平点亮灯(低电平有效)
 	if(status == OFF)
-		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_14, 0);//设置GPIO_2输出低电平关闭灯
+		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_14, 1);//设置GPIO_14输出高电平关闭灯(低电平有效)
 }
 
 /***************************************************************
