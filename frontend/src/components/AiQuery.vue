@@ -6,7 +6,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
-import { sendAiQuery, parseAiCommand, sendCommand, type AiCommandResult } from '@/api/lab';
+import { sendAiQuery, parseAiCommand, sendCommand, sendBulkCommand, type AiCommandResult } from '@/api/lab';
 
 interface ChatMessage {
   id: string;
@@ -154,7 +154,13 @@ function ctxPrefix() {
 
 // ── Scroll ────────────────────────────────────────────────────
 function scrollDown(force = false) {
-  nextTick(() => { if (chatBody.value && (force || autoScroll.value)) chatBody.value.scrollTop = chatBody.value.scrollHeight; });
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      if (chatBody.value && (force || autoScroll.value)) {
+        chatBody.value.scrollTop = chatBody.value.scrollHeight;
+      }
+    });
+  });
 }
 
 function onScroll() {
@@ -210,35 +216,78 @@ async function ask(question: string) {
 
 // ── Command ───────────────────────────────────────────────────
 const cmdKw = ['打开', '关闭', '关掉', '开', '关', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
-function looksCmd(t: string) { return cmdKw.some((k) => t.includes(k)) && /[aA]\d{3}|槽位\d+|bearpi/i.test(t); }
+const bulkKw = ['所有', '全部', '全部的', '所有的', '每个', '全都'];
+function looksCmd(t: string) {
+  if (!cmdKw.some((k) => t.includes(k))) return false;
+  return /[aA]\d{3}|槽位\d+|bearpi|所有|全部|全都|每个/i.test(t);
+}
+
+function parseBulkIntent(text: string): { actuator: 'motor' | 'light'; mode: 'auto' | 'on' | 'off' } | null {
+  const t = text.toLowerCase();
+  let actuator: 'motor' | 'light' | null = null;
+  let mode: 'auto' | 'on' | 'off' | null = null;
+  if (/(电机|风扇|通风|motor)/.test(t)) actuator = 'motor';
+  else if (/(灯|补光|照明|light)/.test(t)) actuator = 'light';
+  if (/(打开|开|开启|点亮|on)/.test(t)) mode = 'on';
+  else if (/(关闭|关|关掉|熄灭|off)/.test(t)) mode = 'off';
+  else if (/(自动|auto)/.test(t)) mode = 'auto';
+  return actuator && mode ? { actuator, mode } : null;
+}
 
 async function detectCmd(idx: number) {
   if (!currentSession.value) return;
   const user = currentSession.value.messages[idx]; if (!user) return;
+  const isBulk = bulkKw.some((k) => user.content.includes(k));
   const cmd: ChatMessage = { id: nextId(), role: 'assistant', content: '正在解析指令…', ts: Date.now(), status: 'done', commandStatus: 'confirming' };
   currentSession.value.messages.splice(idx + 1, 0, cmd); scrollDown(true);
   try {
-    const r = await parseAiCommand(user.content);
-    cmd.command = r;
-    if (r.detected && r.device_id) { cmd.content = `检测到控制指令: ${r.explanation || ''}`; }
-    else { cmd.content = r.explanation || '未识别为设备控制指令'; cmd.commandStatus = 'rejected'; cmd.command = undefined; }
+    if (isBulk) {
+      const intent = parseBulkIntent(user.content);
+      if (intent) {
+        const al = intent.actuator === 'motor' ? '电机' : '补光灯';
+        const ml = intent.mode === 'on' ? '打开' : intent.mode === 'off' ? '关闭' : '自动';
+        cmd.content = `检测到批量控制指令: ${al} ${ml}（全部设备）`;
+        cmd.command = { detected: true, actuator: intent.actuator, mode: intent.mode, device_sn: '全部设备', explanation: `批量${al}${ml}` } as AiCommandResult & { _bulk: boolean };
+        (cmd.command as unknown as Record<string, boolean>)._bulk = true;
+      } else {
+        cmd.content = '未识别为设备控制指令';
+        cmd.commandStatus = 'rejected';
+      }
+    } else {
+      const r = await parseAiCommand(user.content);
+      cmd.command = r;
+      if (r.detected && r.device_id) { cmd.content = `检测到控制指令: ${r.explanation || ''}`; }
+      else { cmd.content = r.explanation || '未识别为设备控制指令'; cmd.commandStatus = 'rejected'; cmd.command = undefined; }
+    }
   } catch { cmd.content = '指令解析失败'; cmd.commandStatus = 'error'; }
   scrollDown(true);
 }
 
 async function execCmd(idx: number) {
   if (!currentSession.value) return;
-  const cmd = currentSession.value.messages[idx]; if (!cmd?.command?.device_id) return;
+  const cmd = currentSession.value.messages[idx]; if (!cmd?.command) return;
   cmd.commandStatus = 'executing'; cmd.content = '正在执行…';
   try {
-    const { device_id, actuator, mode } = cmd.command;
-    const pk = actuator === 'motor' ? 'motor_override' : 'light_override';
-    const p: Record<string, string | number | boolean> = {}; p[pk] = mode ?? 'on';
-    await sendCommand(device_id!, { type: 'set_param', params: p });
-    cmd.commandStatus = 'executed';
-    const al = actuator === 'motor' ? '电机' : '补光灯';
-    const ml = mode === 'on' ? '打开' : mode === 'off' ? '关闭' : '自动';
-    cmd.content = `已下发: ${cmd.command.device_sn} ${al} ${ml}`; ElMessage.success('指令已下发');
+    const { actuator, mode } = cmd.command;
+    const isBulk = (cmd.command as unknown as Record<string, boolean>)._bulk;
+    if (isBulk) {
+      await sendBulkCommand({ target: 'all', actuator: actuator as 'motor' | 'light', mode: (mode as 'auto' | 'on' | 'off') ?? 'on' });
+      const al = actuator === 'motor' ? '电机' : '补光灯';
+      const ml = mode === 'on' ? '打开' : mode === 'off' ? '关闭' : '自动';
+      cmd.commandStatus = 'executed';
+      cmd.content = `已批量下发: 全部设备 ${al} ${ml}`;
+      ElMessage.success('批量指令已下发');
+    } else {
+      if (!cmd.command.device_id) return;
+      const pk = actuator === 'motor' ? 'motor_override' : 'light_override';
+      const p: Record<string, string | number | boolean> = {}; p[pk] = mode ?? 'on';
+      await sendCommand(cmd.command.device_id, { type: 'set_param', params: p });
+      cmd.commandStatus = 'executed';
+      const al = actuator === 'motor' ? '电机' : '补光灯';
+      const ml = mode === 'on' ? '打开' : mode === 'off' ? '关闭' : '自动';
+      cmd.content = `已下发: ${cmd.command.device_sn} ${al} ${ml}`;
+      ElMessage.success('指令已下发');
+    }
   } catch (e) { cmd.commandStatus = 'error'; cmd.content = `执行失败: ${e instanceof Error ? e.message : '未知错误'}`; }
   scrollDown(true);
 }
