@@ -235,7 +235,8 @@ function showConfirm(content: string) {
       <text>当前最需要处理</text>
       <text>{{ store.loading ? '刷新中' : '按设备状态' }}</text>
     </view>
-    <view v-if="!store.loading && !priorityDevices.length" class="empty-state">当前没有高优先级风险</view>
+    <view v-if="!store.loading && !store.devices.length" class="empty-state">当前没有接入板卡</view>
+    <view v-else-if="!store.loading && !priorityDevices.length" class="empty-state">全部设备运行稳定，暂无风险</view>
     <view v-else class="device-list">
       <view v-for="device in priorityDevices" :key="device.id" class="device-row" @click="openDevice(device)">
         <view>

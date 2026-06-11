@@ -265,10 +265,14 @@ async function runBulkControl(actuator: 'motor' | 'light', mode: 'auto' | 'on' |
           </RouterLink>
         </div>
         <EmptyState
-          v-else
+          v-else-if="store.devices.length === 0"
           title="当前没有接入板卡"
           detail="小熊派连接热点并上报 telemetry 后，会自动注册并显示在这里。"
         />
+        <div v-else class="incident-all-stable">
+          <el-icon :size="20" color="var(--el-color-success)"><CheckCircle2 /></el-icon>
+          <span>全部设备运行稳定，暂无风险</span>
+        </div>
       </el-card>
 
       <el-card class="ops-health-card" shadow="never">
@@ -350,6 +354,15 @@ async function runBulkControl(actuator: 'motor' | 'light', mode: 'auto' | 'on' |
 <style scoped>
 .skeleton-grid {
   margin-top: 4px;
+}
+
+.incident-all-stable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
 }
 
 .skeleton-card {
