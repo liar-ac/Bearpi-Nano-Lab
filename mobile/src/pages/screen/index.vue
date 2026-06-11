@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
-import { onShow, onUnload } from '@dcloudio/uni-app';
+import { onHide, onShow, onUnload } from '@dcloudio/uni-app';
 import { fetchAlarms } from '@/api/lab';
 import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
 import { useDeviceStore } from '@/stores/devices';
@@ -59,6 +59,10 @@ onShow(() => {
     }, 10000);
   }
   void load();
+});
+
+onHide(() => {
+  teardown();
 });
 
 onUnload(() => {
