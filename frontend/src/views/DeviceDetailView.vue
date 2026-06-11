@@ -134,6 +134,7 @@ function isOverrideMode(value: unknown): value is OverrideMode {
 function syncActuatorState(logs: CommandResult[]) {
   const next = { ...actuatorState.value };
   const seen = new Set<OverrideKey>();
+  if (!Array.isArray(logs)) return;
   for (const command of logs) {
     if (command.command !== 'set_param' || !command.params) continue;
     for (const key of Object.keys(next) as OverrideKey[]) {
@@ -199,7 +200,7 @@ async function runCommand(payload: CommandPayload, displayName = commandLabel[pa
       }
     );
     const result = await sendCommand(deviceId.value, payload);
-    commandLogs.value = [result, ...commandLogs.value].slice(0, 20);
+    commandLogs.value = [result, ...(Array.isArray(commandLogs.value) ? commandLogs.value : [])].slice(0, 20);
     ElMessage.success(result.message);
     return result;
   } catch (cause) {
