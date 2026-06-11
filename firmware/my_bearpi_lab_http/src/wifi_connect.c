@@ -47,6 +47,25 @@ static int g_ConnectSuccess = 0;
 static int ssid_count = 0;
 WifiEvent g_wifiEventHandler = {0};
 WifiErrorCode error;
+static struct netif *g_lwip_netif = NULL;
+static char g_gatewayIp[20] = {0};
+
+const char *GetGatewayIp(void)
+{
+    if (g_lwip_netif == NULL) {
+        return NULL;
+    }
+    const ip4_addr_t *gw = &g_lwip_netif->gw;
+    if (ip4_addr_isany(gw)) {
+        return NULL;
+    }
+    const char *ipStr = ip4addr_ntoa(gw);
+    if (ipStr == NULL || ipStr[0] == '\0') {
+        return NULL;
+    }
+    snprintf(g_gatewayIp, sizeof(g_gatewayIp), "%s", ipStr);
+    return g_gatewayIp;
+}
 
 #define SELECT_WLAN_PORT "wlan0"
 
@@ -54,7 +73,6 @@ int WifiConnect(const char *ssid, const char *psk)
 {
     WifiScanInfo *info = NULL;
     unsigned int size = WIFI_SCAN_HOTSPOT_LIMIT;
-    static struct netif *g_lwip_netif = NULL;
 
     osDelay(200);
     printf("<--System Init-->\r\n");

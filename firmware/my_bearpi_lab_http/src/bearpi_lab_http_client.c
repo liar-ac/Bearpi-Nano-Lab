@@ -421,8 +421,21 @@ static int ConnectTcp(void)
         return sock;
     }
 
+    /* Auto-detected gateway IP (most lab/home networks run server on gateway) */
+    const char *gwIp = GetGatewayIp();
+    if (gwIp != NULL &&
+        strcmp(gwIp, BEARPI_SERVER_HOST) != 0) {
+        printf("[bearpi-lab] trying gateway %s:%d\r\n", gwIp, BEARPI_SERVER_PORT);
+        sock = ConnectTcpToHost(gwIp);
+        if (sock >= 0) {
+            g_activeServerHost = gwIp;
+            return sock;
+        }
+    }
+
     if (strlen(BEARPI_SERVER_HOST_FALLBACK) > 0 &&
-        strcmp(BEARPI_SERVER_HOST_FALLBACK, BEARPI_SERVER_HOST) != 0) {
+        strcmp(BEARPI_SERVER_HOST_FALLBACK, BEARPI_SERVER_HOST) != 0 &&
+        (gwIp == NULL || strcmp(BEARPI_SERVER_HOST_FALLBACK, gwIp) != 0)) {
         printf("[bearpi-lab] trying fallback server %s:%d\r\n", BEARPI_SERVER_HOST_FALLBACK, BEARPI_SERVER_PORT);
         sock = ConnectTcpToHost(BEARPI_SERVER_HOST_FALLBACK);
         if (sock >= 0) {

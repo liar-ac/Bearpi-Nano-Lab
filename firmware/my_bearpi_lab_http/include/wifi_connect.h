@@ -18,5 +18,12 @@
 
 int WifiConnect(const char *ssid,const char *psk);
 
+/*
+ * Returns the DHCP gateway IP as a string (e.g. "192.168.137.1").
+ * Must be called AFTER WifiConnect succeeds (DHCP must be bound).
+ * Returns NULL if not available.
+ */
+const char *GetGatewayIp(void);
+
 #endif /* __WIFI_CONNECT_H__ */
 
