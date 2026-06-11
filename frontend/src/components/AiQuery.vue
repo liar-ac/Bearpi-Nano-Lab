@@ -156,17 +156,28 @@ function ctxPrefix() {
 function isNearBottom(): boolean {
   if (!chatBody.value) return true;
   const { scrollTop, scrollHeight, clientHeight } = chatBody.value;
+  if (clientHeight === 0) return true;
   return scrollHeight - scrollTop - clientHeight < 120;
+}
+
+let wasNearBottom = true;
+
+function snapshotScroll() {
+  wasNearBottom = isNearBottom();
 }
 
 function scrollDown(force = false) {
   nextTick(() => {
     requestAnimationFrame(() => {
       if (!chatBody.value) return;
-      if (force || isNearBottom()) {
-        chatBody.value.scrollTop = chatBody.value.scrollHeight;
+      const el = chatBody.value;
+      if (force || wasNearBottom) {
+        el.scrollTop = el.scrollHeight;
         showScrollBtn.value = false;
+      } else {
+        showScrollBtn.value = true;
       }
+      wasNearBottom = true;
     });
   });
 }
@@ -185,6 +196,7 @@ function onKey(e: KeyboardEvent) {
 function send(withCtx = false) {
   const q = input.value.trim();
   if (!q || !currentSession.value) return;
+  snapshotScroll();
   if (generating.value) {
     queue.value.push(q);
     currentSession.value.messages.push({ id: nextId(), role: 'user', content: q, ts: Date.now(), status: 'queued' });
@@ -202,6 +214,7 @@ async function ask(question: string) {
   if (!currentSession.value) return;
   generating.value = true; aiStatus.value = 'connecting';
   const msg: ChatMessage = { id: nextId(), role: 'assistant', content: '', ts: Date.now(), status: 'generating' };
+  snapshotScroll();
   currentSession.value.messages.push(msg); scrollDown(true);
   const ctrl = new AbortController(); abortController.value = ctrl;
   try {
@@ -245,6 +258,7 @@ async function detectCmd(idx: number) {
   const user = currentSession.value.messages[idx]; if (!user) return;
   const isBulk = bulkKw.some((k) => user.content.includes(k));
   const cmd: ChatMessage = { id: nextId(), role: 'assistant', content: '正在解析指令…', ts: Date.now(), status: 'done', commandStatus: 'confirming' };
+  snapshotScroll();
   currentSession.value.messages.splice(idx + 1, 0, cmd); scrollDown();
   try {
     if (isBulk) {
@@ -272,6 +286,7 @@ async function detectCmd(idx: number) {
 async function execCmd(idx: number) {
   if (!currentSession.value) return;
   const cmd = currentSession.value.messages[idx]; if (!cmd?.command) return;
+  snapshotScroll();
   cmd.commandStatus = 'executing'; cmd.content = '正在执行…';
   try {
     const { actuator, mode } = cmd.command;
@@ -304,6 +319,7 @@ function rejectCmd(idx: number) { if (currentSession.value) { const m = currentS
 function stop() {
   abortController.value?.abort(); generating.value = false; aiStatus.value = 'idle';
   if (!currentSession.value) return;
+  snapshotScroll();
   const last = currentSession.value.messages[currentSession.value.messages.length - 1];
   if (last?.role === 'assistant' && last.status === 'generating') { last.content = (last.content || '') + '\n\n*[已停止]*'; last.status = 'done'; }
   queue.value = [];
@@ -315,6 +331,7 @@ function regen(idx: number) {
   let qi = -1; for (let i = idx - 1; i >= 0; i--) { if (currentSession.value.messages[i].role === 'user') { qi = i; break; } }
   if (qi < 0) return;
   const q = currentSession.value.messages[qi].content;
+  snapshotScroll();
   currentSession.value.messages.splice(idx, 1);
   if (!generating.value) ask(q); else queue.value.push(q);
 }
@@ -737,6 +754,8 @@ watch(input, () => nextTick(autoH));
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: #fbfcfd;
 }
 
