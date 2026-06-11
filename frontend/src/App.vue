@@ -2,11 +2,9 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
-import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
-const auth = useAuthStore();
 const isPublic = computed(() => route.meta.public === true);
 const isFullscreen = computed(() => route.meta.fullscreen === true);
 const isLoading = ref(false);
@@ -34,15 +32,6 @@ watch(
     document.title = next ? `${next} · 小熊派 Nano 实验室` : '小熊派 Nano 实验室管理系统';
   },
   { immediate: true }
-);
-
-watch(
-  () => auth.isAuthenticated,
-  (isAuthenticated) => {
-    if (!isAuthenticated && !isPublic.value) {
-      void router.replace({ name: 'login', query: { redirect: route.fullPath } });
-    }
-  }
 );
 </script>
 

@@ -21,6 +21,10 @@ async function submit() {
     uni.showToast({ title: '请填写账号和密码', icon: 'none' });
     return;
   }
+  if (password.value.length < 6) {
+    uni.showToast({ title: '密码至少需要 6 位', icon: 'none' });
+    return;
+  }
   if (password.value !== confirmPassword.value) {
     uni.showToast({ title: '两次输入的密码不一致', icon: 'none' });
     return;

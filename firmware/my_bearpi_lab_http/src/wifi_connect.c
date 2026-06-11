@@ -59,13 +59,16 @@ int WifiConnect(const char *ssid, const char *psk)
     osDelay(200);
     printf("<--System Init-->\r\n");
 
+    g_ConnectSuccess = 0;
+
     //初始化WIFI
     WiFiInit();
 
     //使能WIFI
-    if (EnableWifi() != WIFI_SUCCESS)
+    WifiErrorCode enableErr = EnableWifi();
+    if (enableErr != WIFI_SUCCESS)
     {
-        printf("EnableWifi failed, error = %d\r\n", error);
+        printf("EnableWifi failed, error = %d\r\n", enableErr);
         return -1;
     }
 
@@ -84,6 +87,7 @@ int WifiConnect(const char *ssid, const char *psk)
         return -1;
     }
     //轮询查找WiFi列表
+    int scanRetries = 10;
     do{
         //重置标志位
         ssid_count = 0;
@@ -98,7 +102,15 @@ int WifiConnect(const char *ssid, const char *psk)
         //获取扫描列表
         error = GetScanInfoList(info, &size);
 
-    }while(g_staScanSuccess != 1);
+        scanRetries--;
+    }while(g_staScanSuccess != 1 && scanRetries > 0);
+
+    if (g_staScanSuccess != 1)
+    {
+        printf("ERROR: wifi scan failed after max retries\r\n");
+        free(info);
+        return -1;
+    }
     //打印WiFi列表
     printf("********************\r\n");
     for(uint8_t i = 0; i < ssid_count; i++)
@@ -139,7 +151,7 @@ int WifiConnect(const char *ssid, const char *psk)
         {
             printf("ERROR: No wifi as expected\r\n");
             free(info);
-            while(1) osDelay(100);
+            return -1;
         }
     }
      //启动DHCP
@@ -153,7 +165,8 @@ int WifiConnect(const char *ssid, const char *psk)
     printf("begain to dhcp\r\n");
 
     //等待DHCP
-    for(;;)
+    int dhcpTimeout = 300; /* 300 * 100ms = 30 seconds */
+    while (dhcpTimeout > 0)
     {
         if(dhcp_is_bound(g_lwip_netif) == ERR_OK)
         {
@@ -166,6 +179,13 @@ int WifiConnect(const char *ssid, const char *psk)
 
         printf("<-- DHCP state:Inprogress -->\r\n");
         osDelay(100);
+        dhcpTimeout--;
+    }
+    if (dhcpTimeout <= 0)
+    {
+        printf("<-- DHCP state:TIMEOUT -->\r\n");
+        free(info);
+        return -1;
     }
 
     osDelay(100);

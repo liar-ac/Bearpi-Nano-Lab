@@ -233,6 +233,11 @@ REST_FRAMEWORK = {
         "auth_login": os.getenv("THROTTLE_AUTH_LOGIN", "5/min"),
         "auth_register": os.getenv("THROTTLE_AUTH_REGISTER", "3/min"),
         "auth_refresh": os.getenv("THROTTLE_AUTH_REFRESH", "30/min"),
+        "telemetry_ingest": os.getenv("THROTTLE_TELEMETRY_INGEST", "120/min"),
+        "device_commands": os.getenv("THROTTLE_DEVICE_COMMANDS", "60/min"),
+        "ai_chat": os.getenv("THROTTLE_AI_CHAT", "10/min"),
+        "ai_query": os.getenv("THROTTLE_AI_QUERY", "20/min"),
+        "ai_command": os.getenv("THROTTLE_AI_COMMAND", "20/min"),
     },
 }
 

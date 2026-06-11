@@ -333,7 +333,7 @@ def resolve_or_register_device(data, sensor_codes=None):
                         or data.get("owner")
                         or "未分配"
                     ),
-                    status=Device.Status.OFFLINE,
+                    status=Device.Status.ONLINE,
                     last_seen=timezone.now(),
                     ip_address=data.get("ip_address"),
                     cloud_twin_id=str(data.get("cloud_device_id") or data.get("device_id") or ""),

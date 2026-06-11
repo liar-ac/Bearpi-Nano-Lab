@@ -38,13 +38,13 @@ const controllableDevices = computed(() =>
 );
 
 onShow(async () => {
-  await load();
   if (!unsubscribe) unsubscribe = subscribeRealtime(store.applyRealtime);
   if (!refreshTimer) {
     refreshTimer = setInterval(() => {
       void load();
     }, 10000);
   }
+  await load();
 });
 
 onHide(() => {

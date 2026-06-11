@@ -17,9 +17,9 @@
 
 #define TASK_STACK_SIZE (1024 * 12)
 #define TASK_PRIO 25
-#define HTTP_RX_BUF_SIZE 2048
-#define HTTP_TX_BUF_SIZE 1536
-#define JSON_BUF_SIZE 1024
+#define HTTP_RX_BUF_SIZE 1536
+#define HTTP_TX_BUF_SIZE 1024
+#define JSON_BUF_SIZE 768
 #define ACTUATOR_AUTO (-1)
 #define ACTUATOR_OFF 0
 #define ACTUATOR_ON 1
@@ -128,6 +128,7 @@ typedef struct {
 
 static uint32_t RotRight(uint32_t value, uint32_t bits)
 {
+    if (bits == 0) return value;
     return (value >> bits) | (value << (32U - bits));
 }
 
@@ -397,6 +398,12 @@ static int ConnectTcpToHost(const char *host)
     addr.sin_port = htons(BEARPI_SERVER_PORT);
     addr.sin_addr.s_addr = inet_addr(host);
 
+    if (addr.sin_addr.s_addr == INADDR_NONE) {
+        printf("[bearpi-lab] inet_addr failed for host %s\r\n", host);
+        CloseSocket(sock);
+        return -1;
+    }
+
     if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         printf("[bearpi-lab] connect %s:%d failed\r\n", host, BEARPI_SERVER_PORT);
         CloseSocket(sock);
@@ -499,7 +506,21 @@ static int HttpPostJson(const char *path, const char *json, char *response, int 
     response[total] = '\0';
     CloseSocket(sock);
 
-    if (strstr(response, " 200 ") == NULL && strstr(response, " 201 ") == NULL) {
+    char *lineEnd = strstr(response, "\r\n");
+    int statusOk = 0;
+    if (lineEnd != NULL) {
+        char saved = *lineEnd;
+        *lineEnd = '\0';
+        if (strstr(response, " 200 ") != NULL || strstr(response, " 201 ") != NULL) {
+            statusOk = 1;
+        }
+        *lineEnd = saved;
+    } else {
+        if (strstr(response, " 200 ") != NULL || strstr(response, " 201 ") != NULL) {
+            statusOk = 1;
+        }
+    }
+    if (!statusOk) {
         printf("[bearpi-lab] http response not ok:\r\n%s\r\n", response);
         return -1;
     }
@@ -962,6 +983,9 @@ static int PullAndAckCommand(void)
 
 static void BearPiLabTask(void)
 {
+    int consecutiveFailures = 0;
+    const int MAX_CONSECUTIVE_FAILURES = 5;
+
     printf("[bearpi-lab] starting\r\n");
     printf("[bearpi-lab] wifi ssid=%s\r\n", BEARPI_WIFI_SSID);
     printf("[bearpi-lab] server=%s:%d fallback=%s sn=%s\r\n",
@@ -974,9 +998,25 @@ static void BearPiLabTask(void)
     E53_IA1_Init();
 
     while (1) {
-        ReportTelemetry();
-        PullAndAckCommand();
-        usleep(BEARPI_REPORT_INTERVAL_MS * 1000);
+        int telemetryOk = (ReportTelemetry() == 0);
+        int commandOk = (PullAndAckCommand() == 0);
+
+        if (telemetryOk && commandOk) {
+            consecutiveFailures = 0;
+        } else {
+            consecutiveFailures++;
+            printf("[bearpi-lab] consecutive failures: %d/%d\r\n", consecutiveFailures, MAX_CONSECUTIVE_FAILURES);
+        }
+
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            printf("[bearpi-lab] too many failures, attempting WiFi reconnect...\r\n");
+            WifiConnect(BEARPI_WIFI_SSID, BEARPI_WIFI_PASSWORD);
+            consecutiveFailures = 0;
+        }
+
+        /* Simple backoff: sleep longer on repeated failures */
+        int backoffMs = BEARPI_REPORT_INTERVAL_MS * (1 + consecutiveFailures);
+        usleep(backoffMs * 1000);
     }
 }
 

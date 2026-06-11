@@ -38,6 +38,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let mockTimer: number | null = null;
 let closingIntentionally = false;
+let reconnecting = false;
 
 export function subscribeRealtime(onMessage: (message: RealtimeMessage) => void) {
   listeners.add(onMessage);
@@ -89,6 +90,7 @@ function startMockRealtime() {
 }
 
 function connectWebSocket() {
+  if (reconnecting) return;
   const token = localStorage.getItem('access_token');
   if (!token) {
     realtimeState.status = 'auth_failed';
@@ -137,7 +139,9 @@ function connectWebSocket() {
       if (realtimeState.attempts === 0) {
         realtimeState.status = 'reconnecting';
         realtimeState.error = 'Token过期，尝试刷新后重连...';
+        reconnecting = true;
         refreshAccessToken().then((newToken) => {
+          reconnecting = false;
           const hasSubscribers = listeners.size > 0 || alarmListeners.size > 0;
           if (!hasSubscribers) {
             realtimeState.status = 'idle';
@@ -177,6 +181,7 @@ function scheduleReconnect(reason: string) {
 
 function stopRealtimeConnection() {
   clearReconnectTimer();
+  reconnecting = false;
   if (mockTimer !== null) {
     window.clearInterval(mockTimer);
     mockTimer = null;
@@ -240,6 +245,7 @@ export function reconnectRealtime() {
     }
     socket = null;
   }
+  reconnecting = false;
   realtimeState.attempts = 0;
   realtimeState.status = 'idle';
   realtimeState.error = '';

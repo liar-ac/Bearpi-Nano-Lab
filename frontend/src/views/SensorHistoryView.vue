@@ -95,6 +95,12 @@ watch([deviceId, sensorId], async () => {
   await loadMeta();
   data.value = null;
 });
+
+watch([interval, range], () => {
+  if (data.value !== null) {
+    search();
+  }
+});
 </script>
 
 <template>

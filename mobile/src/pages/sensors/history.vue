@@ -47,10 +47,10 @@ async function loadMeta() {
 async function search() {
   if (!sensorId.value) return;
   loading.value = true;
-  error.value = '';
   const end = new Date();
   const start = new Date(Date.now() - rangeDays.value * 24 * 60 * 60_000);
   try {
+    error.value = '';
     data.value = await fetchHistory(sensorId.value, {
       start: start.toISOString(),
       end: end.toISOString(),

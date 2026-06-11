@@ -12,7 +12,7 @@
 #define BEARPI_SERVER_HOST_FALLBACK "192.168.137.1"
 #define BEARPI_SERVER_PORT    8000
 #define BEARPI_DEVICE_SN      "BEARPI-NANO-A002"
-#define BEARPI_DEVICE_TOKEN_SECRET "replace-me-device-token-secret"
+#define BEARPI_DEVICE_TOKEN_SECRET "bearpi-device-token-secret-2026"
 
 /*
  * Optional: paste a precomputed per-board token here if you do not want the

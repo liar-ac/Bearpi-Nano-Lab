@@ -807,8 +807,120 @@ export function mockUpdateRule(sensorId: number, payload: { min?: number | null;
   });
 }
 
+export function mockSendAiChat(
+  feature: string,
+  context: Record<string, unknown>
+): Promise<{ reply: string; feature: string }> {
+  const replies: Record<string, string> = {
+    dashboard: '当前实验室共 4 台 BearPi-HM Nano 开发板，其中 1 台在线、1 台异常、1 台维护中、1 台离线。',
+    devices: '设备列表已为您加载完毕，可以点击任意设备查看传感器详情和下发指令。',
+    alarms: '目前有 2 条未处理告警：设备 A002 光照传感器波动过大（warning），设备 A004 离线超过 30 分钟（critical）。',
+    rules: '传感器阈值规则已配置，您可以在规则管理页面修改上下限。当前温度阈值为 18-32℃，湿度阈值为 30-75%。'
+  };
+  const reply = replies[feature] ?? `收到功能「${feature}」的上下文，当前为离线模拟模式，无法调用真实 AI 服务。`;
+  return delay({ reply, feature });
+}
+
+export function mockSendAiQuery(
+  question: string,
+  _history?: Array<{ role: string; content: string }>
+): Promise<{ reply: string; question: string }> {
+  const lower = question.toLowerCase();
+  let reply: string;
+  if (lower.includes('温度') || lower.includes('temp')) {
+    reply = '当前设备 A001 板载温度为 24.6℃，处于正常范围内（阈值 18-32℃）。设备 A002 温度为 25.3℃，同样正常。';
+  } else if (lower.includes('湿度') || lower.includes('hum')) {
+    reply = '各设备湿度读数在 48%-60% 之间，均在正常范围（30%-75%）内。';
+  } else if (lower.includes('光照') || lower.includes('light')) {
+    reply = '设备 A002 光照传感器近期波动较大，已触发 warning 告警。建议检查传感器连接或环境光源。';
+  } else if (lower.includes('电压') || lower.includes('power') || lower.includes('功耗')) {
+    reply = '在线设备工作电压约 5.04V，电流采样来自 ADC 实测值，功耗在 1000-1500mW 左右。';
+  } else if (lower.includes('设备') || lower.includes('device')) {
+    reply = '实验室共 4 台开发板，设备编号 A001-A004，分布在实验台 1-4。当前在线 1 台，异常 1 台，维护 1 台，离线 1 台。';
+  } else {
+    reply = `收到您的问题「${question}」，当前为离线模拟模式，无法调用真实 AI 服务。请连接后端后重试。`;
+  }
+  return delay({ reply, question });
+}
+
+export function mockParseAiCommand(text: string): Promise<{
+  detected: boolean;
+  device_sn?: string;
+  device_id?: number;
+  slot_no?: number;
+  device_status?: string;
+  actuator?: string;
+  mode?: string;
+  confidence?: number;
+  explanation?: string;
+}> {
+  const lower = text.toLowerCase();
+  let detected = false;
+  let actuator: string | undefined;
+  let mode: string | undefined;
+  let explanation: string | undefined;
+  let confidence = 0;
+
+  if (lower.includes('电机') || lower.includes('motor')) {
+    detected = true;
+    actuator = 'motor';
+    confidence = 0.92;
+    if (lower.includes('开') || lower.includes('打开') || lower.includes('启动')) {
+      mode = 'on';
+      explanation = '检测到开启电机指令';
+    } else if (lower.includes('关') || lower.includes('关闭') || lower.includes('停')) {
+      mode = 'off';
+      explanation = '检测到关闭电机指令';
+    } else if (lower.includes('自动')) {
+      mode = 'auto';
+      explanation = '检测到电机自动模式指令';
+    }
+  } else if (lower.includes('灯') || lower.includes('light') || lower.includes('补光')) {
+    detected = true;
+    actuator = 'light';
+    confidence = 0.90;
+    if (lower.includes('开') || lower.includes('打开')) {
+      mode = 'on';
+      explanation = '检测到开灯指令';
+    } else if (lower.includes('关') || lower.includes('关闭')) {
+      mode = 'off';
+      explanation = '检测到关灯指令';
+    } else if (lower.includes('自动')) {
+      mode = 'auto';
+      explanation = '检测到补光灯自动模式指令';
+    }
+  }
+
+  if (detected && mode) {
+    return delay({
+      detected: true,
+      device_sn: 'BEARPI-NANO-A001',
+      device_id: 1,
+      slot_no: 1,
+      device_status: 'online',
+      actuator,
+      mode,
+      confidence,
+      explanation
+    });
+  }
+
+  return delay({ detected: false, explanation: '未检测到可执行的设备控制指令' });
+}
+
 export function nextRealtimeMessage(): RealtimeMessage {
   const onlineDevices = devices.filter((device) => device.status !== 'offline');
+  if (onlineDevices.length === 0) {
+    return {
+      deviceId: 0,
+      sensorId: 0,
+      code: 'unknown',
+      name: '无在线设备',
+      unit: '',
+      value: 0,
+      ts: new Date().toISOString()
+    };
+  }
   const device = onlineDevices[Math.floor(Math.random() * onlineDevices.length)];
   const sensor = device.sensors[Math.floor(Math.random() * device.sensors.length)];
   const latest = sensor.latest?.value ?? 1;

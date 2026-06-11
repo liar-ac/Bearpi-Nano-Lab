@@ -129,12 +129,26 @@ function showConfirm(content: string) {
 }
 
 function syncActuatorState(logs: CommandResult[]) {
-  for (const command of logs) {
+  let motorFound = false;
+  let lightFound = false;
+  for (let i = logs.length - 1; i >= 0; i--) {
+    const command = logs[i];
     if (command.command !== 'set_param' || !command.params) continue;
-    const motor = command.params.motor_override;
-    const light = command.params.light_override;
-    if (motor === 'auto' || motor === 'on' || motor === 'off') motorMode.value = motor;
-    if (light === 'auto' || light === 'on' || light === 'off') lightMode.value = light;
+    if (!motorFound) {
+      const motor = command.params.motor_override;
+      if (motor === 'auto' || motor === 'on' || motor === 'off') {
+        motorMode.value = motor;
+        motorFound = true;
+      }
+    }
+    if (!lightFound) {
+      const light = command.params.light_override;
+      if (light === 'auto' || light === 'on' || light === 'off') {
+        lightMode.value = light;
+        lightFound = true;
+      }
+    }
+    if (motorFound && lightFound) break;
   }
 }
 

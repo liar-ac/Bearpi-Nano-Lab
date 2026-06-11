@@ -55,18 +55,19 @@ function clearSession() {
 
 function buildHeaders(options: RequestInit, token: string | null) {
   const headers = new Headers(options.headers);
-  if (options.body) {
+  if (typeof options.body === 'string' && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   if (token) headers.set('Authorization', `Bearer ${token}`);
   return headers;
 }
 
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestInit = {}, signal?: AbortSignal | null): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
   let response = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: buildHeaders(options, token)
+    headers: buildHeaders(options, token),
+    signal: signal ?? undefined
   });
 
   if (response.status === 401 && !path.startsWith('/auth/')) {
@@ -74,7 +75,8 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     if (nextToken) {
       response = await fetch(`${API_BASE}${path}`, {
         ...options,
-        headers: buildHeaders(options, nextToken)
+        headers: buildHeaders(options, nextToken),
+        signal: signal ?? undefined
       });
     }
   }
@@ -82,25 +84,26 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   if (!response.ok) {
     let message = `请求失败：${response.status}`;
     try {
-      const body = await response.json();
-      if (typeof body === 'object' && body !== null) {
-        const candidates = [body.error, body.detail, body.message];
-        if (Array.isArray(body.non_field_errors)) {
-          candidates.push(body.non_field_errors.join(', '));
-        }
-        message = candidates.find((v) => typeof v === 'string' && v.length > 0) ?? message;
-      } else if (typeof body === 'string' && body.length > 0) {
-        message = body.slice(0, 500);
-      }
-    } catch {
-      try {
-        const text = await response.text();
-        if (text && text.length > 0) {
+      const text = await response.text();
+      if (text && text.length > 0) {
+        try {
+          const body = JSON.parse(text);
+          if (typeof body === 'object' && body !== null) {
+            const candidates = [body.error, body.detail, body.message];
+            if (Array.isArray(body.non_field_errors)) {
+              candidates.push(body.non_field_errors.join(', '));
+            }
+            message = candidates.find((v) => typeof v === 'string' && v.length > 0) ?? message;
+          } else if (typeof body === 'string' && body.length > 0) {
+            message = body.slice(0, 500);
+          }
+        } catch {
+          // Body is not JSON; use the raw text as the error message.
           message = text.slice(0, 500);
         }
-      } catch {
-        // Keep the generic message when the server did not return readable body.
       }
+    } catch {
+      // Keep the generic message when the server did not return readable body.
     }
     if (response.status === 401) {
       clearSession();

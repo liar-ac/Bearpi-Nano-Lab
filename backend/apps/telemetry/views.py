@@ -78,6 +78,7 @@ class SimulateRealtimeView(APIView):
 
 class TelemetryIngestView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "telemetry_ingest"
 
     def post(self, request):
         if not valid_device_token(request, request.data):
@@ -96,28 +97,32 @@ class TelemetryIngestView(APIView):
             s.code: s
             for s in Sensor.objects.select_related("device").filter(device=device, code__in=codes)
         }
-        ts = points[0]["ts"]
         raw_points = []
         update_sensors = []
         for item in points:
             sensor = sensor_map.get(item["sensor_code"])
             if sensor is None:
                 raise ValidationError({"sensor_code": f"sensor {item['sensor_code']} does not exist on {device.sn}"})
-            raw_points.append(RawPoint(device=device, sensor=sensor, ts=ts, value=item["value"]))
-            sensor.latest_ts = ts
+            item_ts = item["ts"]
+            raw_points.append(RawPoint(device=device, sensor=sensor, ts=item_ts, value=item["value"]))
+            sensor.latest_ts = item_ts
             sensor.latest_value = item["value"]
             update_sensors.append(sensor)
 
         with transaction.atomic():
             RawPoint.objects.bulk_create(raw_points)
             Sensor.objects.bulk_update(update_sensors, ["latest_ts", "latest_value"])
+            new_alarms = []
             for item in points:
                 sensor = sensor_map[item["sensor_code"]]
-                alarm = record_threshold_alarm(sensor, item["value"], ts)
+                item_ts = item["ts"]
+                alarm = record_threshold_alarm(sensor, item["value"], item_ts)
+                if alarm is not None:
+                    new_alarms.append(alarm)
                 payload = {
                     "deviceId": device.id, "sensorId": sensor.id, "code": sensor.code,
                     "name": sensor.name, "unit": sensor.unit,
-                    "value": item["value"], "ts": ts.isoformat(), "status": device.status,
+                    "value": item["value"], "ts": item_ts.isoformat(), "status": device.status,
                 }
                 published.append(payload)
 
@@ -125,14 +130,15 @@ class TelemetryIngestView(APIView):
             if device.status != Device.Status.MAINTENANCE:
                 device.status = Device.Status.WARNING if has_open_alarm else Device.Status.ONLINE
                 device.abnormal_reason = ""
-            device.last_seen = ts
+            latest_ts = max(item["ts"] for item in points)
+            device.last_seen = latest_ts
             device.save(update_fields=["status", "last_seen", "abnormal_reason"])
 
             cloud = getattr(device, "cloud", None)
             if cloud:
                 cloud.mqtt_status = CloudDeviceStatus.MqttStatus.CONNECTED
                 cloud.sync_status = CloudDeviceStatus.SyncStatus.SYNCED
-                cloud.last_sync = ts
+                cloud.last_sync = latest_ts
                 cloud.shadow_version += 1
                 cloud.save(update_fields=["mqtt_status", "sync_status", "last_sync", "shadow_version"])
 
@@ -142,6 +148,20 @@ class TelemetryIngestView(APIView):
             group_name = getattr(settings, "REALTIME_GROUP_NAME", "realtime")
             for payload in published:
                 async_to_sync(channel_layer.group_send)(group_name, {"type": "sensor.point", "payload": payload})
+            for alarm in new_alarms:
+                alarm_payload = {
+                    "id": alarm.id,
+                    "deviceId": device.id,
+                    "sensorId": alarm.sensor_id,
+                    "deviceName": device.sn,
+                    "level": alarm.level,
+                    "status": alarm.status,
+                    "message": alarm.message,
+                    "ts": alarm.ts.isoformat(),
+                }
+                async_to_sync(channel_layer.group_send)(
+                    group_name, {"type": "alarm.event", "payload": alarm_payload}
+                )
 
         return Response({"accepted": len(published), "points": published}, status=status.HTTP_201_CREATED)
 

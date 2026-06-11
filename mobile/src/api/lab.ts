@@ -17,6 +17,9 @@ import {
   mockSendBulkCommand,
   mockRetryBulkTask,
   mockSendCommand,
+  mockSendAiChat,
+  mockSendAiQuery,
+  mockParseAiCommand,
   mockUpdateAccountUserRole,
   mockUpdateRule
 } from '@/api/mock';
@@ -202,6 +205,7 @@ export function fetchAuditLogs(params: { action?: string; limit?: number; offset
 }
 
 export function sendAiChat(feature: string, context: Record<string, unknown>) {
+  if (USE_MOCK) return mockSendAiChat(feature, context);
   return request<{ reply: string; feature: string }>('/ai/chat', {
     method: 'POST',
     data: { feature, context }
@@ -209,6 +213,7 @@ export function sendAiChat(feature: string, context: Record<string, unknown>) {
 }
 
 export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>) {
+  if (USE_MOCK) return mockSendAiQuery(question, history);
   return request<{ reply: string; question: string }>('/ai/query', {
     method: 'POST',
     data: { question, history }
@@ -228,6 +233,7 @@ export interface AiCommandResult {
 }
 
 export function parseAiCommand(text: string) {
+  if (USE_MOCK) return mockParseAiCommand(text);
   return request<AiCommandResult>('/ai/command', {
     method: 'POST',
     data: { text }

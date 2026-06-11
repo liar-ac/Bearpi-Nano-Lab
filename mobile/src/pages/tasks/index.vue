@@ -65,7 +65,7 @@ async function load() {
   error.value = '';
   try {
     const [taskResponse, deviceResponse] = await Promise.all([
-      fetchBulkTasks(),
+      fetchBulkTasks({ limit: 50 }),
       fetchDevices()
     ]);
     tasks.value = taskResponse.results;
@@ -79,7 +79,7 @@ async function load() {
 
 async function refreshTasksOnly() {
   try {
-    tasks.value = (await fetchBulkTasks()).results;
+    tasks.value = (await fetchBulkTasks({ limit: 50 })).results;
   } catch {
     // 保留上一轮任务列表，避免短暂网络抖动清空页面。
   }

@@ -194,7 +194,7 @@ async function ask(question: string) {
   const ctrl = new AbortController(); abortController.value = ctrl;
   try {
     aiStatus.value = 'thinking';
-    const r = await sendAiQuery(question, buildHistory()) as { reply: string; data_source?: string; diagnostic?: Record<string, unknown> };
+    const r = await sendAiQuery(question, buildHistory(), ctrl.signal) as { reply: string; data_source?: string; diagnostic?: Record<string, unknown> };
     if (ctrl.signal.aborted) return;
     aiStatus.value = 'replying';
     msg.content = r.reply; msg.dataSource = r.data_source; msg.diagnostic = r.diagnostic ?? null; msg.status = 'done'; save();
@@ -202,8 +202,9 @@ async function ask(question: string) {
     if (ctrl.signal.aborted) return;
     msg.content = `请求失败: ${e instanceof Error ? e.message : '未知错误'}`; msg.status = 'error'; ElMessage.error(msg.content);
   } finally {
-    abortController.value = null; generating.value = false; aiStatus.value = 'idle'; scrollDown(true);
-    if (queue.value.length) { const n = queue.value.shift()!; const qm = currentSession.value.messages.find((m) => m.status === 'queued'); if (qm) qm.status = 'done'; await nextTick(); ask(n); }
+    if (abortController.value === ctrl) { abortController.value = null; generating.value = false; aiStatus.value = 'idle'; }
+    scrollDown(true);
+    if (!generating.value && queue.value.length) { const n = queue.value.shift()!; const qm = currentSession.value.messages.find((m) => m.status === 'queued'); if (qm) qm.status = 'done'; await nextTick(); ask(n); }
   }
 }
 

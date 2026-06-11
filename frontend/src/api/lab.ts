@@ -196,18 +196,18 @@ export function updateRule(sensorId: number, payload: { min?: number | null; max
   });
 }
 
-export function sendAiChat(feature: string, context: Record<string, unknown>) {
-  return request<{ reply: string; feature: string }>('/ai/chat', {
+export function sendAiChat(feature: string, context: Record<string, unknown>, signal?: AbortSignal | null) {
+  return request<{ reply: string; feature: string; data_source?: string }>('/ai/chat', {
     method: 'POST',
     body: JSON.stringify({ feature, context })
-  });
+  }, signal);
 }
 
-export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>) {
-  return request<{ reply: string; question: string }>('/ai/query', {
+export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>, signal?: AbortSignal | null) {
+  return request<{ reply: string; question: string; data_source?: string; diagnostic?: Record<string, unknown> }>('/ai/query', {
     method: 'POST',
     body: JSON.stringify({ question, history })
-  });
+  }, signal);
 }
 
 export interface AiCommandResult {

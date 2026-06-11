@@ -17,6 +17,7 @@ const visible = ref(false);
 const loading = ref(false);
 const reply = ref('');
 const error = ref('');
+let abortController: AbortController | null = null;
 
 const featureTitles: Record<AiFeature, string> = {
   alarm_diagnosis: 'AI告警诊断',
@@ -27,24 +28,31 @@ const featureTitles: Record<AiFeature, string> = {
 const displayTitle = computed(() => props.title ?? featureTitles[props.feature] ?? 'AI分析');
 
 async function analyze() {
+  abortController?.abort();
+  abortController = new AbortController();
   visible.value = true;
   loading.value = true;
   error.value = '';
   reply.value = '';
   await nextTick();
   try {
-    const result = await sendAiChat(props.feature, props.context);
+    const result = await sendAiChat(props.feature, props.context, abortController.signal);
     reply.value = result.reply;
   } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') return;
     error.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
     ElMessage.error(error.value);
   } finally {
     loading.value = false;
+    abortController = null;
   }
 }
 
 function close() {
-  if (loading.value) return;
+  if (loading.value) {
+    abortController?.abort();
+    loading.value = false;
+  }
   visible.value = false;
 }
 </script>

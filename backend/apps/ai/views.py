@@ -10,6 +10,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -429,7 +430,7 @@ def call_ai_api(system_prompt, user_message, history=None, timeout=None):
 # ---------------------------------------------------------------------------
 
 class AiHealthView(APIView):
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         api_key = settings.XIAOMI_MIMO_API_KEY
@@ -518,12 +519,14 @@ class AiPingView(APIView):
 
 
 class AiChatView(APIView):
+    throttle_scope = "ai_chat"
+
     def post(self, request):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter"):
             raise PermissionDenied("仅管理员和实验员可使用AI分析功能")
         feature = request.data.get("feature")
-        if feature not in SYSTEM_PROMPTS:
+        if feature not in CONTEXT_BUILDERS:
             raise ValidationError({"feature": f"不支持的AI功能: {feature}"})
         context = request.data.get("context")
         if not isinstance(context, dict) or not context:
@@ -536,6 +539,8 @@ class AiChatView(APIView):
 
 
 class AiQueryView(APIView):
+    throttle_scope = "ai_query"
+
     def post(self, request):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter", "viewer"):
@@ -550,6 +555,9 @@ class AiQueryView(APIView):
             history = []
         # Limit history to last 20 turns to avoid token overflow
         history = history[-40:]
+        for item in history:
+            if isinstance(item, dict) and isinstance(item.get("content"), str):
+                item["content"] = item["content"][:2000]
         lab_context, _data_source = gather_lab_context()
         user_message = f"## 用户问题\n{question}"
         if lab_context:
@@ -639,6 +647,8 @@ COMMAND_PARSE_PROMPT = (
 
 
 class AiCommandParseView(APIView):
+    throttle_scope = "ai_command"
+
     def post(self, request):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter"):

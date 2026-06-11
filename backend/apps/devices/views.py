@@ -86,7 +86,7 @@ class DeviceCommandView(APIView):
 
     def get(self, request, device_id):
         device = get_object_or_404(Device, pk=device_id)
-        commands = DeviceCommand.objects.filter(device=device)
+        commands = DeviceCommand.objects.filter(device=device).order_by("-created_at")[:200]
         return Response(DeviceCommandSerializer(commands, many=True).data)
 
     def post(self, request, device_id):
@@ -450,6 +450,7 @@ class DeviceBulkTaskRetryView(APIView):
 
 class DeviceCommandPullView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "device_commands"
 
     def post(self, request):
         if not valid_device_token(request, request.data):
@@ -487,6 +488,7 @@ class DeviceCommandPullView(APIView):
 
 class DeviceCommandAckView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "device_commands"
 
     def post(self, request):
         if not valid_device_token(request, request.data):

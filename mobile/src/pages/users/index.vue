@@ -27,6 +27,10 @@ onShow(() => {
 });
 
 onPullDownRefresh(async () => {
+  if (!auth.canManageUsers) {
+    uni.stopPullDownRefresh();
+    return;
+  }
   await load();
   uni.stopPullDownRefresh();
 });

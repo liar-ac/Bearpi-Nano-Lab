@@ -8,6 +8,7 @@ import type { User } from '@/types/domain';
 const TOKEN_KEY = 'access_token';
 const REFRESH_KEY = 'refresh_token';
 const USER_KEY = 'bearpi_user';
+let authClearedListenerAttached = false;
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(uni.getStorageSync(TOKEN_KEY) || null);
@@ -45,11 +46,14 @@ export const useAuthStore = defineStore('auth', () => {
     uni.removeStorageSync(USER_KEY);
   }
 
-  uni.$on(AUTH_CLEARED_EVENT, () => {
-    token.value = null;
-    user.value = null;
-    uni.reLaunch({ url: '/pages/login/index' });
-  });
+  if (!authClearedListenerAttached) {
+    authClearedListenerAttached = true;
+    uni.$on(AUTH_CLEARED_EVENT, () => {
+      token.value = null;
+      user.value = null;
+      uni.reLaunch({ url: '/pages/login/index' });
+    });
+  }
 
   return {
     token,
