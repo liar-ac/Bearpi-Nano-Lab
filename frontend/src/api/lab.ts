@@ -144,7 +144,7 @@ export function retryBulkTask(batchId: string) {
 
 export function fetchCommands(deviceId: number) {
   if (USE_MOCK) return mockFetchCommands(deviceId);
-  return request<CommandResult[]>(`/devices/${deviceId}/commands`);
+  return request<{ count: number; results: CommandResult[] }>(`/devices/${deviceId}/commands`).then((r) => r.results);
 }
 
 export function fetchAlarms(params: { status?: string; level?: string; limit?: number; offset?: number } = {}) {
