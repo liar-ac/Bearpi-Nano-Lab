@@ -499,35 +499,36 @@ class DeviceCommandAckView(APIView):
         serializer.is_valid(raise_exception=True)
 
         device = resolve_device(serializer.validated_data)
-        command = DeviceCommand.objects.select_for_update().filter(
-            id=serializer.validated_data["command_id"],
-            device=device,
-        ).first()
-        if command is None:
-            raise ValidationError({"command_id": "command not found on this device"})
+        with transaction.atomic():
+            command = DeviceCommand.objects.select_for_update().filter(
+                id=serializer.validated_data["command_id"],
+                device=device,
+            ).first()
+            if command is None:
+                raise ValidationError({"command_id": "command not found on this device"})
 
-        if command.status in [DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED]:
-            return Response(DeviceCommandSerializer(command).data)
+            if command.status in [DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED]:
+                return Response(DeviceCommandSerializer(command).data)
 
-        if command.status != DeviceCommand.Status.SENT:
-            raise ValidationError({"command_id": f"command is in '{command.status}' status, expected 'sent'"})
+            if command.status != DeviceCommand.Status.SENT:
+                raise ValidationError({"command_id": f"command is in '{command.status}' status, expected 'sent'"})
 
-        command.status = serializer.validated_data["status"]
-        command.ack_at = serializer.validated_data.get("ack_at", timezone.now())
+            command.status = serializer.validated_data["status"]
+            command.ack_at = serializer.validated_data.get("ack_at", timezone.now())
 
-        update_fields = ["status", "ack_at"]
-        message = serializer.validated_data.get("message")
-        if message is not None:
-            command.message = message
-            update_fields.append("message")
-        elif command.status == DeviceCommand.Status.ACKED:
-            command.message = "设备已确认执行"
-            update_fields.append("message")
-        elif command.status == DeviceCommand.Status.FAILED and command.message.endswith("等待设备 ACK"):
-            command.message = "设备执行失败"
-            update_fields.append("message")
+            update_fields = ["status", "ack_at"]
+            message = serializer.validated_data.get("message")
+            if message is not None:
+                command.message = message
+                update_fields.append("message")
+            elif command.status == DeviceCommand.Status.ACKED:
+                command.message = "设备已确认执行"
+                update_fields.append("message")
+            elif command.status == DeviceCommand.Status.FAILED and command.message.endswith("等待设备 ACK"):
+                command.message = "设备执行失败"
+                update_fields.append("message")
 
-        command.save(update_fields=update_fields)
+            command.save(update_fields=update_fields)
         record_audit(
             request,
             AuditLog.Action.COMMAND_ACK,

@@ -74,10 +74,9 @@ class RegisterSerializer(serializers.Serializer):
         name = validated_data.get("name", "").strip()
         try:
             validate_password(password)
-        except serializers.ValidationError:
-            raise
         except Exception as exc:
-            raise serializers.ValidationError({"password": [str(exc)]})
+            error_messages = exc.messages if hasattr(exc, 'messages') else [str(exc)]
+            raise serializers.ValidationError({"password": error_messages})
         try:
             with transaction.atomic():
                 user = User.objects.create_user(username=username, password=password)

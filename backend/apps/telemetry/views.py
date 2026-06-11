@@ -328,7 +328,7 @@ def close_resolved_alarms(sensor):
     Alarm.objects.filter(
         device=sensor.device,
         sensor=sensor,
-        status__in=[Alarm.Status.NEW, Alarm.Status.ACKNOWLEDGED],
+        status=Alarm.Status.NEW,
     ).update(status=Alarm.Status.CLOSED)
 
 
