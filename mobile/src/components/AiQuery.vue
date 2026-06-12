@@ -31,10 +31,13 @@ const exampleQuestions = [
 // ── Command detection ────────────────────────────────────────
 const cmdKw = ['打开', '关闭', '关掉', '开', '关', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
 const bulkKw = ['所有', '全部', '全部的', '所有的', '每个', '全都'];
+const actuatorKw = ['电机', '灯', '补光灯', '风扇', 'motor', 'light'];
 
 function looksCmd(t: string): boolean {
   if (!cmdKw.some((k) => t.includes(k))) return false;
-  return /[aA]\d{3}|槽位\d+|bearpi|所有|全部|全都|每个/i.test(t);
+  // 匹配设备标识 或 包含执行器关键词（如"关闭灯"、"打开电机"）
+  return /[aA]\d{3}|槽位\d+|bearpi|所有|全部|全都|每个/i.test(t) ||
+    actuatorKw.some((k) => t.includes(k));
 }
 
 function parseBulkIntent(text: string): { actuator: 'motor' | 'light'; mode: 'auto' | 'on' | 'off' } | null {
@@ -99,11 +102,15 @@ async function detectCmd(idx: number) {
   const user = messages.value[idx];
   if (!user) return;
   const isBulk = bulkKw.some((k) => user.content.includes(k));
+  const hasActuator = actuatorKw.some((k) => user.content.includes(k));
+  const hasDevice = /[aA]\d{3}|槽位\d+|bearpi/i.test(user.content);
+  // 当包含执行器关键词但没有指定设备时，默认对所有设备执行
+  const shouldBulk = isBulk || (hasActuator && !hasDevice);
   const cmd: ChatMessage = { role: 'assistant', content: '正在解析指令…', commandStatus: 'confirming' };
   messages.value.splice(idx + 1, 0, cmd);
 
   try {
-    if (isBulk) {
+    if (shouldBulk) {
       const intent = parseBulkIntent(user.content);
       if (intent) {
         const al = intent.actuator === 'motor' ? '电机' : '补光灯';
