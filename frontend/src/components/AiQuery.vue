@@ -585,6 +585,7 @@ watch(input, () => nextTick(autoH));
   --red: #ff453a;
   display: grid;
   grid-template-columns: 238px minmax(0, 1fr);
+  align-items: stretch;
   height: 100%;
   overflow: hidden;
   color: var(--text);
