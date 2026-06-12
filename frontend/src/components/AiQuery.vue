@@ -638,7 +638,10 @@ watch(input, () => nextTick(autoH));
 <style>
 /* Non-scoped styles for dialog content (append-to-body) */
 .ai-dialog.el-dialog {
+  margin: 24px auto !important;
   padding: 0;
+  max-height: calc(100vh - 48px) !important;
+  max-height: calc(100dvh - 48px) !important;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.52) !important;
   border-radius: 18px !important;
@@ -658,8 +661,10 @@ watch(input, () => nextTick(autoH));
   grid-template-rows: minmax(0, 1fr);
   padding: 0 !important;
   overflow: hidden;
-  height: min(82vh, 720px);
-  min-height: 560px;
+  height: min(640px, calc(100vh - 48px));
+  height: min(640px, calc(100dvh - 48px));
+  min-height: min(520px, calc(100vh - 48px));
+  min-height: min(520px, calc(100dvh - 48px));
 }
 
 .ws {
