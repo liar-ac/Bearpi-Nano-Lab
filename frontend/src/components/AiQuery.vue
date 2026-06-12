@@ -393,7 +393,7 @@ watch(input, () => nextTick(autoH));
     <ChatLineSquare :size="16" /> AI问答
   </el-button>
 
-  <el-dialog v-model="visible" class="ai-dialog" :show-close="false" width="min(980px, 96vw)" append-to-body :close-on-click-modal="false" :z-index="9999" lock-scroll>
+  <el-dialog v-model="visible" class="ai-dialog" :show-close="false" width="min(980px, 96vw)" :close-on-click-modal="false" :z-index="9999" lock-scroll>
     <div class="ws">
       <!-- Sidebar -->
       <aside class="side">
