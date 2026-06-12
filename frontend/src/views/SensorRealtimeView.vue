@@ -23,6 +23,7 @@ const simulating = ref(false);
 const error = ref('');
 
 let unsubscribe: (() => void) | null = null;
+let cancelled = false;
 
 const chartThresholds = computed(() => {
   const thresholds = [];
@@ -91,6 +92,7 @@ async function simulatePoint() {
 
 onMounted(async () => {
   await load();
+  if (cancelled) return;
   unsubscribe = subscribeRealtime((message) => {
     appendRealtimePoint(message);
   });
@@ -101,7 +103,10 @@ watch([deviceId, sensorId], async () => {
   await load();
 });
 
-onBeforeUnmount(() => unsubscribe?.());
+onBeforeUnmount(() => {
+  cancelled = true;
+  unsubscribe?.();
+});
 </script>
 
 <template>

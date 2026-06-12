@@ -284,7 +284,7 @@ async function ask(question: string) {
       const qm = currentSession.value.messages.find((m) => m.status === 'queued');
       if (qm) qm.status = 'done';
       await nextTick();
-      ask(n);
+      ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ });
     }
   }
 }
@@ -481,9 +481,9 @@ function clear() {
     content: '确定清空当前对话？',
     success: (res) => {
       if (res.confirm && currentSession.value) {
+        if (generating.value) stop();
         currentSession.value.messages = [];
         queue.value = [];
-        if (generating.value) stop();
         save();
       }
     },

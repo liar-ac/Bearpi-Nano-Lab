@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, CheckCircle2, Cpu, Gauge, RadioTower, RefreshC
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
-import { realtimeState, subscribeRealtime } from '@/api/realtime';
+import { realtimeState } from '@/api/realtime';
 import { useDeviceStore } from '@/stores/devices';
 import type { Device, DeviceStatus, LabSlot } from '@/types/domain';
 import { formatValue, relativeTime, statusLabel } from '@/utils/format';
@@ -16,7 +16,6 @@ const keyword = ref('');
 const selectedFilter = ref<TopologyFilter>('all');
 const selectedLayer = ref<TopologyLayer>('status');
 const selectedSlotNo = ref(1);
-let unsubscribe: (() => void) | null = null;
 let refreshTimer: number | null = null;
 
 const filters: Array<{ label: string; value: TopologyFilter }> = [
@@ -96,14 +95,12 @@ const selectedSlot = computed(() =>
 
 onMounted(async () => {
   await store.loadDevices({ status: 'all', includeInactive: true });
-  unsubscribe = subscribeRealtime(store.applyRealtime);
   refreshTimer = window.setInterval(() => {
     void store.loadDevices({ status: 'all', includeInactive: true });
   }, 10_000);
 });
 
 onBeforeUnmount(() => {
-  unsubscribe?.();
   if (refreshTimer !== null) {
     window.clearInterval(refreshTimer);
   }

@@ -10,6 +10,7 @@ import { downloadCsv, downloadExcel } from '@/utils/exportCsv';
 import { formatDateTime } from '@/utils/format';
 
 const route = useRoute();
+let searchSeq = 0;
 const deviceId = computed(() => Number(route.params.deviceId));
 const sensorId = computed(() => Number(route.params.sensorId));
 const device = ref<Device | null>(null);
@@ -95,16 +96,14 @@ function exportExcel() {
 
 onMounted(async () => {
   await loadMeta();
-  await search();
+  await search(++searchSeq);
 });
 
 watch([deviceId, sensorId], async () => {
   await loadMeta();
   data.value = null;
-  await search();
+  await search(++searchSeq);
 });
-
-let searchSeq = 0;
 
 watch([interval, range], () => {
   if (data.value !== null) {
@@ -149,7 +148,7 @@ watch([interval, range], () => {
             <el-option label="1 天" value="1d" />
           </el-select>
         </label>
-        <el-button type="primary" :loading="loading" @click="search">
+        <el-button type="primary" :loading="loading" @click="search(++searchSeq)">
           <Search :size="17" />
           查询
         </el-button>

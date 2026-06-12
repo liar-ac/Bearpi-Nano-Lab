@@ -24,7 +24,8 @@ async function submit() {
     ElMessage.success('登录成功');
     const redirect = route.query.redirect;
     const target = Array.isArray(redirect) ? redirect[0] : (redirect ?? '/dashboard');
-    router.replace(String(target));
+    const safe = typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') ? target : '/dashboard';
+    router.replace(safe);
   } catch (cause) {
     ElMessage.error(cause instanceof Error ? cause.message : '登录失败');
   } finally {

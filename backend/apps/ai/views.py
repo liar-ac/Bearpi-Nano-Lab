@@ -300,18 +300,30 @@ def parse_ai_reply(body):
     except (ValueError, TypeError):
         return body[:2000]
     reply = ""
-    if isinstance(data.get("content"), list):
-        reply = "".join(block.get("text", "") for block in data["content"] if block.get("type") == "text")
-    elif isinstance(data.get("content"), str):
-        reply = data["content"]
-    elif isinstance(data.get("choices"), list) and data["choices"]:
-        choice = data["choices"][0]
-        if isinstance(choice.get("message"), dict):
-            reply = choice["message"].get("content", "")
-        elif isinstance(choice.get("text"), str):
-            reply = choice["text"]
+    try:
+        if isinstance(data.get("content"), list):
+            reply = "".join(
+                block.get("text", "")
+                for block in data["content"]
+                if isinstance(block, dict) and block.get("type") == "text"
+            )
+        elif isinstance(data.get("content"), str):
+            reply = data["content"]
+        elif isinstance(data.get("choices"), list) and data["choices"]:
+            choice = data["choices"][0]
+            if isinstance(choice, dict):
+                if isinstance(choice.get("message"), dict):
+                    reply = choice["message"].get("content", "")
+                elif isinstance(choice.get("text"), str):
+                    reply = choice["text"]
+    except (AttributeError, TypeError, KeyError):
+        logger.warning("AI reply structure unexpected, falling back to raw body")
+        reply = ""
     if not reply:
-        reply = json.dumps(data, ensure_ascii=False)[:2000]
+        try:
+            reply = json.dumps(data, ensure_ascii=False)[:2000]
+        except (TypeError, ValueError):
+            reply = str(body)[:2000]
     return reply
 
 

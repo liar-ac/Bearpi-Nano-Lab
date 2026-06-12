@@ -1,11 +1,15 @@
+import logging
 from urllib.parse import parse_qs
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import AccessToken
+
+logger = logging.getLogger(__name__)
 
 
 class RealtimeConsumer(AsyncJsonWebsocketConsumer):
@@ -59,8 +63,18 @@ class RealtimeConsumer(AsyncJsonWebsocketConsumer):
     def resolve_user(self, token):
         try:
             payload = AccessToken(token)
-        except TokenError:
+        except TokenError as exc:
+            logger.warning("WebSocket auth failed (token invalid or expired): %s", exc)
             return None
+        # Explicit expiry check: AccessToken validates by default, but guard
+        # against configurations where VERIFY_EXPIRATION might be disabled.
+        try:
+            exp_timestamp = payload.get("exp")
+            if exp_timestamp is not None and exp_timestamp < timezone.now().timestamp():
+                logger.warning("WebSocket rejected: token expired at %s", exp_timestamp)
+                return None
+        except Exception:
+            pass
         user_id = payload.get("user_id")
         if not user_id:
             return None

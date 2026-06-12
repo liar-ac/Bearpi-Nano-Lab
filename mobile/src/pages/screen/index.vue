@@ -87,17 +87,20 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    await store.loadDevices({ status: 'all', includeInactive: true });
-    if (store.error) error.value = store.error;
-  } catch {
-    error.value = '设备数据加载失败';
+    try {
+      await store.loadDevices({ status: 'all', includeInactive: true });
+      if (store.error) error.value = store.error;
+    } catch {
+      error.value = '设备数据加载失败';
+    }
+    try {
+      alarms.value = await fetchAlarms({ limit: 100 });
+    } catch {
+      error.value = error.value || '告警数据加载失败';
+    }
+  } finally {
+    loading.value = false;
   }
-  try {
-    alarms.value = await fetchAlarms({ limit: 100 });
-  } catch {
-    error.value = error.value || '告警数据加载失败';
-  }
-  loading.value = false;
 }
 
 function riskScore(device: Device) {

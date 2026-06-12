@@ -41,6 +41,7 @@ let closingIntentionally = false;
 let socketOpening = false;
 let socketOpen = false;
 let reconnecting = false;
+let connectGeneration = 0;
 
 export function subscribeRealtime(onMessage: (message: RealtimeMessage) => void) {
   listeners.add(onMessage);
@@ -97,6 +98,7 @@ function connectWebSocket() {
     return;
   }
 
+  const gen = ++connectGeneration;
   clearReconnectTimer();
   closingIntentionally = false;
   socketOpening = true;
@@ -150,6 +152,7 @@ function connectWebSocket() {
         reconnecting = true;
         refreshAccessToken().then((newToken) => {
           reconnecting = false;
+          if (connectGeneration !== gen) return;
           const hasSubscribers = listeners.size > 0 || alarmListeners.size > 0;
           if (!hasSubscribers) {
             realtimeState.status = 'idle';

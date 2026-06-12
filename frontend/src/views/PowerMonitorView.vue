@@ -328,6 +328,8 @@ function ensureTrendDevice() {
   }
 }
 
+let trendSeq = 0;
+
 async function loadPowerTrend() {
   const sensor = selectedTrendPowerSensor.value;
   if (!sensor) {
@@ -335,6 +337,7 @@ async function loadPowerTrend() {
     trendError.value = '';
     return;
   }
+  const seq = ++trendSeq;
   trendLoading.value = true;
   trendError.value = '';
   const end = new Date();
@@ -346,12 +349,14 @@ async function loadPowerTrend() {
       end: end.toISOString(),
       interval: range.interval
     });
+    if (seq !== trendSeq) return;
     trendPoints.value = response.points;
   } catch (cause) {
+    if (seq !== trendSeq) return;
     trendError.value = cause instanceof Error ? cause.message : '功耗趋势加载失败';
     trendPoints.value = [];
   } finally {
-    trendLoading.value = false;
+    if (seq === trendSeq) trendLoading.value = false;
   }
 }
 

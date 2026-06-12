@@ -42,8 +42,10 @@ def filter_bulk_command_devices(target, device_ids=None):
     if target == "all":
         return queryset.exclude(status=Device.Status.OFFLINE).filter(last_seen__gte=cutoff)
     if target == "selected":
+        if not isinstance(device_ids, list):
+            return queryset.none()
         return queryset.filter(
-            id__in=device_ids or [],
+            id__in=device_ids,
             status__in=BULK_COMMAND_CONTROLLABLE_STATUSES,
             last_seen__gte=cutoff,
         )

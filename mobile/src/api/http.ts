@@ -39,17 +39,19 @@ function rawRequest<T>(path: string, options: RequestOptions, token: string | nu
       reject(new ApiError('请求已取消'));
       return;
     }
+    let onAbort: (() => void) | undefined;
+    const cleanup = () => { if (signal && onAbort) signal.removeEventListener('abort', onAbort); };
     const task = uni.request({
       url: `${API_BASE}${path}`,
       method: (options.method ?? 'GET') as UniNamespace.RequestOptions['method'],
       data: options.data as Record<string, unknown> | string | undefined,
       header,
       timeout: 15000,
-      success: (res) => resolve({ statusCode: res.statusCode, data: res.data as T }),
-      fail: (err) => reject(new ApiError(err.errMsg || '网络异常'))
+      success: (res) => { cleanup(); resolve({ statusCode: res.statusCode, data: res.data as T }); },
+      fail: (err) => { cleanup(); reject(new ApiError(err.errMsg || '网络异常')); }
     });
     if (signal) {
-      const onAbort = () => {
+      onAbort = () => {
         task.abort();
         reject(new ApiError('请求已取消'));
       };
@@ -99,6 +101,8 @@ export async function request<T>(path: string, options: RequestOptions = {}, sig
   }
 
   if (res.statusCode >= 200 && res.statusCode < 300) {
+    // 204 No Content carries no body; cast undefined to T so callers can treat
+    // success uniformly without null-checks. The actual runtime value is undefined.
     if (res.statusCode === 204) return undefined as T;
     return res.data;
   }

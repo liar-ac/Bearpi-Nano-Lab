@@ -85,8 +85,19 @@ class TelemetryIngestView(APIView):
             return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
 
         points = parse_ingest_points(request.data)
+        # Validate each point has required fields; skip invalid ones instead of crashing
+        valid_points = []
+        for item in points:
+            if not isinstance(item, dict):
+                continue
+            if "sensor_code" not in item or "value" not in item:
+                continue
+            if item.get("ts") is None:
+                continue
+            valid_points.append(item)
+        points = valid_points
         if not points:
-            raise ValidationError({"metrics": "at least one sensor value is required"})
+            raise ValidationError({"metrics": "at least one valid sensor data point is required (each needs sensor_code, value)"})
         device = resolve_or_register_device(request.data, [item["sensor_code"] for item in points])
         points = append_ia1_control_points(device, points)
 

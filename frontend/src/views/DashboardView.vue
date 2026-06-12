@@ -22,7 +22,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import LabCapacityGrid from '@/components/LabCapacityGrid.vue';
 import MetricCard from '@/components/MetricCard.vue';
 import { sendBulkCommand } from '@/api/lab';
-import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
+import { realtimeState, realtimeStatusLabel } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
 import { useDeviceStore } from '@/stores/devices';
 import type { Device, DeviceStatus } from '@/types/domain';
@@ -30,7 +30,6 @@ import { formatValue, relativeTime, statusLabel } from '@/utils/format';
 
 const store = useDeviceStore();
 const auth = useAuthStore();
-let unsubscribe: (() => void) | null = null;
 let refreshTimer: number | null = null;
 
 const filters: Array<{ label: string; value: DeviceStatus | 'all' }> = [
@@ -71,14 +70,12 @@ const controllableDevices = computed(() =>
 
 onMounted(async () => {
   await store.loadDevices({ status: 'all' });
-  unsubscribe = subscribeRealtime(store.applyRealtime);
   refreshTimer = window.setInterval(() => {
     void store.loadDevices({ status: 'all' });
   }, 10_000);
 });
 
 onBeforeUnmount(() => {
-  unsubscribe?.();
   if (refreshTimer !== null) {
     window.clearInterval(refreshTimer);
   }
