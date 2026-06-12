@@ -45,6 +45,8 @@ const generating = ref(false);
 const abortController = ref<AbortController | null>(null);
 const aiStatus = ref<'idle' | 'connecting' | 'thinking' | 'replying'>('idle');
 const inputFocused = ref(false);
+const statusTick = ref(0);
+let statusTimer: number | null = null;
 
 const examples = [
   '查询设备状态',
@@ -67,7 +69,7 @@ const canSend = computed(() => input.value.trim().length > 0);
 const showScrollBtn = ref(false);
 
 const statusText = computed(() => {
-  const dots = '.'.repeat((Date.now() / 600 | 0) % 4);
+  const dots = '.'.repeat(statusTick.value % 4);
   if (aiStatus.value === 'connecting') return `连接中${dots}`;
   if (aiStatus.value === 'thinking') return `思考中${dots}`;
   if (aiStatus.value === 'replying') return `回复中${dots}`;
@@ -281,7 +283,7 @@ async function ask(question: string) {
   } finally {
     if (abortController.value === ctrl) { abortController.value = null; generating.value = false; aiStatus.value = 'idle'; }
     scrollDown();
-    if (!generating.value && queue.value.length) { const n = queue.value.shift()!; const qm = currentSession.value.messages.find((m) => m.status === 'queued'); if (qm) qm.status = 'done'; await nextTick(); ask(n); }
+    if (!generating.value && queue.value.length) { const n = queue.value.shift()!; const qm = currentSession.value.messages.find((m) => m.status === 'queued'); if (qm) qm.status = 'done'; await nextTick(); ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ }); }
   }
 }
 
@@ -416,9 +418,22 @@ function useExample(q: string) {
   nextTick(() => send());
 }
 function open() { visible.value = true; load(); nextTick(() => textareaRef.value?.focus()); }
-function clear() { if (currentSession.value) { currentSession.value.messages = []; queue.value = []; if (generating.value) stop(); save(); } }
+function clear() { if (currentSession.value) { if (generating.value) stop(); currentSession.value.messages = []; queue.value = []; save(); } }
 function fmtTime(ts: number) { const d = new Date(ts); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
 function autoH() { const el = textareaRef.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; } }
+
+function startStatusTimer() {
+  if (statusTimer !== null) return;
+  statusTimer = window.setInterval(() => {
+    statusTick.value++;
+  }, 600);
+}
+
+function stopStatusTimer() {
+  if (statusTimer === null) return;
+  window.clearInterval(statusTimer);
+  statusTimer = null;
+}
 
 function onGlobalKey(e: KeyboardEvent) {
   if (!visible.value) return;
@@ -429,7 +444,11 @@ function onGlobalKey(e: KeyboardEvent) {
   }
 }
 
-onBeforeUnmount(() => { if (generating.value) stop(); window.removeEventListener('keydown', onGlobalKey); });
+onBeforeUnmount(() => { if (generating.value) stop(); stopStatusTimer(); window.removeEventListener('keydown', onGlobalKey); });
+watch(aiStatus, (status) => {
+  if (status === 'idle') stopStatusTimer();
+  else startStatusTimer();
+});
 watch(visible, (v) => {
   if (v) { load(); nextTick(() => textareaRef.value?.focus()); window.addEventListener('keydown', onGlobalKey); }
   else { window.removeEventListener('keydown', onGlobalKey); }
@@ -635,6 +654,8 @@ watch(input, () => nextTick(autoH));
 }
 
 .ai-dialog .el-dialog__body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   padding: 0 !important;
   overflow: hidden;
   height: min(82vh, 720px);
@@ -655,6 +676,8 @@ watch(input, () => nextTick(autoH));
   grid-template-columns: 238px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   color: var(--text);
   background: #f7f8fa;
@@ -663,11 +686,12 @@ watch(input, () => nextTick(autoH));
 }
 
 .side {
+  align-self: stretch;
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
   overflow: hidden;
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   background:
@@ -677,6 +701,7 @@ watch(input, () => nextTick(autoH));
 
 .side-head {
   display: grid;
+  flex-shrink: 0;
   gap: 14px;
   padding: 14px 14px 10px;
 }
@@ -736,6 +761,7 @@ watch(input, () => nextTick(autoH));
 
 .side-actions-bar {
   display: flex;
+  flex-shrink: 0;
   gap: 6px;
   padding: 0 10px 8px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
@@ -923,6 +949,7 @@ watch(input, () => nextTick(autoH));
   display: flex;
   flex-direction: column;
   flex: 1;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1037,6 +1064,7 @@ watch(input, () => nextTick(autoH));
 .body {
   display: flex;
   flex: 1;
+  flex-basis: 0;
   flex-direction: column;
   gap: 18px;
   min-height: 0;
@@ -1053,7 +1081,8 @@ watch(input, () => nextTick(autoH));
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 320px;
+  min-height: 0;
+  padding-block: 20px;
   text-align: center;
 }
 

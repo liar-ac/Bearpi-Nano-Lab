@@ -23,8 +23,10 @@ const maxValue = computed(() => Math.max(...points.value.map((point) => Math.abs
 const chartPoints = computed(() => points.value.slice(-36));
 
 onLoad(async (query) => {
-  deviceId.value = Number(query?.deviceId);
-  sensorId.value = Number(query?.sensorId);
+  const parsedDeviceId = Number(query?.deviceId) || 0;
+  const parsedSensorId = Number(query?.sensorId) || 0;
+  deviceId.value = Number.isFinite(parsedDeviceId) ? parsedDeviceId : 0;
+  sensorId.value = Number.isFinite(parsedSensorId) ? parsedSensorId : 0;
   await load();
   if (!alive) return;
   unsubscribe = subscribeRealtime(appendRealtimePoint);

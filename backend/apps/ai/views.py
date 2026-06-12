@@ -455,6 +455,8 @@ class AiHealthView(APIView):
 
 class AiPingView(APIView):
     """Debug-only endpoint to test AI upstream connectivity."""
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         if not settings.DEBUG:
             return Response({"error": "仅在DEBUG模式下可用"}, status=status.HTTP_403_FORBIDDEN)
@@ -524,6 +526,7 @@ class AiPingView(APIView):
 
 class AiChatView(APIView):
     throttle_scope = "ai_chat"
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         role = resolve_role(request.user)

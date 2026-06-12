@@ -39,6 +39,8 @@ const queue = ref<string[]>([]);
 const generating = ref(false);
 const abortController = ref<AbortController | null>(null);
 const aiStatus = ref<'idle' | 'connecting' | 'thinking' | 'replying'>('idle');
+const statusTick = ref(0);
+let statusTimer: ReturnType<typeof setInterval> | null = null;
 const showSessionBar = ref(false);
 const selectMode = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
@@ -74,7 +76,7 @@ const queueLen = computed(() => queue.value.length);
 const canSend = computed(() => input.value.trim().length > 0);
 
 const statusText = computed(() => {
-  const dots = '.'.repeat((Date.now() / 600 | 0) % 4);
+  const dots = '.'.repeat(statusTick.value % 4);
   if (aiStatus.value === 'connecting') return `连接中${dots}`;
   if (aiStatus.value === 'thinking') return `思考中${dots}`;
   if (aiStatus.value === 'replying') return `回复中${dots}`;
@@ -219,7 +221,7 @@ function measureScroll() {
   uni.createSelectorQuery()
     .select('.messages-scroll')
     .boundingClientRect((rect: any) => {
-      if (rect) clientHeightVal.value = rect.height;
+      if (typeof rect?.height === 'number') clientHeightVal.value = rect.height;
     })
     .exec();
 }
@@ -510,8 +512,26 @@ function formatDiagnostic(diag: Record<string, unknown>): string {
   return parts.join(' | ');
 }
 
+function startStatusTimer() {
+  if (statusTimer !== null) return;
+  statusTimer = setInterval(() => {
+    statusTick.value++;
+  }, 600);
+}
+
+function stopStatusTimer() {
+  if (statusTimer === null) return;
+  clearInterval(statusTimer);
+  statusTimer = null;
+}
+
 // ── Lifecycle ───────────────────────────────────────────────
-onBeforeUnmount(() => { if (generating.value) stop(); });
+onBeforeUnmount(() => { if (generating.value) stop(); stopStatusTimer(); });
+
+watch(aiStatus, (status) => {
+  if (status === 'idle') stopStatusTimer();
+  else startStatusTimer();
+});
 
 watch(visible, (v) => {
   if (v) {

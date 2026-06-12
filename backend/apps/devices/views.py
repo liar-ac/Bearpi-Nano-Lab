@@ -185,16 +185,16 @@ def serialize_bulk_task(batch_id, commands):
         DeviceCommand.Status.ACKED: 0,
         DeviceCommand.Status.FAILED: 0,
     }
-    # 超时阈值：5分钟内未ack的sent命令视为失败
+    # 超时阈值：5分钟内未ack的sent命令视为逾期（仅计算，不写DB）
     stuck_cutoff = timezone.now() - timedelta(minutes=5)
+    overdue_command_ids = set()
     for command in commands:
-        # 如果sent命令超过5分钟未ack，视为失败
         if command.status == DeviceCommand.Status.SENT and command.created_at < stuck_cutoff:
-            command.status = DeviceCommand.Status.FAILED
-            command.message = "设备超时未回执，自动判定失败"
-            command.ack_at = timezone.now()
-            command.save(update_fields=["status", "message", "ack_at"])
-        counts[command.status] = counts.get(command.status, 0) + 1
+            overdue_command_ids.add(command.id)
+            # 逾期命令计入FAILED统计，但不修改数据库
+            counts[DeviceCommand.Status.FAILED] += 1
+        else:
+            counts[command.status] = counts.get(command.status, 0) + 1
 
     total = len(commands)
     finished = counts[DeviceCommand.Status.ACKED] + counts[DeviceCommand.Status.FAILED]
@@ -207,20 +207,21 @@ def serialize_bulk_task(batch_id, commands):
     else:
         task_status = "queued"
 
-    command_rows = [
-        {
+    command_rows = []
+    for command in commands:
+        overdue = command.id in overdue_command_ids
+        command_rows.append({
             "id": command.id,
             "deviceId": command.device_id,
             "slotNo": command.device.slot_no,
             "sn": command.device.sn,
-            "status": command.status,
-            "message": command.message,
+            "status": DeviceCommand.Status.FAILED if overdue else command.status,
+            "overdue": overdue,
+            "message": "设备超时未回执，已按逾期统计" if overdue else command.message,
             "createdAt": command.created_at.isoformat(),
             "ackAt": command.ack_at.isoformat() if command.ack_at else None,
-        }
-        for command in commands
-    ]
-    failed_devices = [row for row in command_rows if row["status"] == DeviceCommand.Status.FAILED]
+        })
+    failed_devices = [row for row in command_rows if row["status"] == DeviceCommand.Status.FAILED or row["overdue"]]
     logs = []
     for command in commands:
         logs.append({
@@ -244,7 +245,18 @@ def serialize_bulk_task(batch_id, commands):
                 "commandId": command.id,
                 "status": DeviceCommand.Status.SENT,
             })
-        if command.status in (DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED) and command.ack_at:
+        if command.id in overdue_command_ids:
+            logs.append({
+                "ts": stuck_cutoff.isoformat(),
+                "level": "error",
+                "message": f"槽位{command.device.slot_no}{command.device.sn}超时未回执，已按失败统计",
+                "deviceId": command.device_id,
+                "slotNo": command.device.slot_no,
+                "sn": command.device.sn,
+                "commandId": command.id,
+                "status": DeviceCommand.Status.FAILED,
+            })
+        elif command.status in (DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED) and command.ack_at:
             logs.append({
                 "ts": command.ack_at.isoformat(),
                 "level": "error" if command.status == DeviceCommand.Status.FAILED else "success",

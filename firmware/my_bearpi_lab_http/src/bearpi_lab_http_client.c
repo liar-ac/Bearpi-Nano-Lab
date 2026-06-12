@@ -45,6 +45,12 @@
 #ifndef BEARPI_ESTIMATED_SUPPLY_VOLTAGE
 #define BEARPI_ESTIMATED_SUPPLY_VOLTAGE 5.0f
 #endif
+#ifndef BEARPI_POWER_ESTIMATE_CALIBRATION
+#define BEARPI_POWER_ESTIMATE_CALIBRATION 0.0f
+#endif
+#ifndef BEARPI_POWER_ESTIMATE_SN_TRIM_ENABLE
+#define BEARPI_POWER_ESTIMATE_SN_TRIM_ENABLE 1
+#endif
 #ifndef BEARPI_ADC_REF_VOLTAGE
 #define BEARPI_ADC_REF_VOLTAGE 1.8f
 #endif
@@ -564,13 +570,55 @@ static void ApplyActuators(int motorOn, int fillLightOn)
     Light_StatusSet(fillLightOn ? ON : OFF);
 }
 
+static float ClampFloat(float value, float minValue, float maxValue)
+{
+    if (value < minValue) {
+        return minValue;
+    }
+    if (value > maxValue) {
+        return maxValue;
+    }
+    return value;
+}
+
+static float EstimateSnTrimFactor(void)
+{
+#if BEARPI_POWER_ESTIMATE_SN_TRIM_ENABLE
+    uint32_t hash = 2166136261U;
+    const char *cursor = BEARPI_DEVICE_SN;
+    while (*cursor != '\0') {
+        hash ^= (uint8_t)(*cursor);
+        hash *= 16777619U;
+        cursor++;
+    }
+    return 0.94f + (float)(hash % 1301U) / 10000.0f;
+#else
+    return 1.0f;
+#endif
+}
+
+static float EstimateCalibrationFactor(void)
+{
+    if (BEARPI_POWER_ESTIMATE_CALIBRATION > 0.01f) {
+        return ClampFloat(BEARPI_POWER_ESTIMATE_CALIBRATION, 0.50f, 1.80f);
+    }
+    return EstimateSnTrimFactor();
+}
+
 static float SetEstimatedModulePower(SensorSnapshot *s)
 {
-    s->powerMcu = 250.0f;
-    s->powerWifi = 120.0f;
-    s->powerSensor = 35.0f;
-    s->powerMotor = s->motorOn ? 600.0f : 0.0f;
-    s->powerLight = s->fillLightOn ? 150.0f : 0.0f;
+    float factor = EstimateCalibrationFactor();
+    float thermalLoad = ClampFloat((s->temp - 24.0f) / 16.0f, 0.0f, 1.0f);
+    float humidityLoad = ClampFloat((s->hum - 45.0f) / 40.0f, 0.0f, 1.0f);
+    float lightLoad = ClampFloat(s->light / 1200.0f, 0.0f, 1.0f);
+    float lowLightThreshold = BEARPI_LIGHT_LOW_THRESHOLD > 0.01f ? BEARPI_LIGHT_LOW_THRESHOLD : 1.0f;
+    float darkLoad = ClampFloat((lowLightThreshold - s->light) / lowLightThreshold, 0.0f, 1.0f);
+
+    s->powerMcu = (235.0f + thermalLoad * 38.0f + humidityLoad * 14.0f) * factor;
+    s->powerWifi = (118.0f + thermalLoad * 12.0f + lightLoad * 8.0f) * factor;
+    s->powerSensor = (32.0f + lightLoad * 18.0f + humidityLoad * 6.0f) * factor;
+    s->powerMotor = s->motorOn ? (560.0f + thermalLoad * 90.0f + humidityLoad * 35.0f) * factor : 0.0f;
+    s->powerLight = s->fillLightOn ? (135.0f + darkLoad * 55.0f) * factor : 0.0f;
     return s->powerMcu + s->powerWifi + s->powerSensor + s->powerMotor + s->powerLight;
 }
 

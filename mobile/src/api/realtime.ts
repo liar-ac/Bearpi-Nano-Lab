@@ -49,7 +49,7 @@ export function subscribeRealtime(onMessage: (message: RealtimeMessage) => void)
 
   return () => {
     listeners.delete(onMessage);
-    if (listeners.size === 0 && alarmListeners.size === 0) {
+    if (!hasSubscribers()) {
       stopRealtimeConnection();
     }
   };
@@ -61,10 +61,14 @@ export function subscribeAlarmEvents(onEvent: (event: RealtimeAlarmEvent) => voi
 
   return () => {
     alarmListeners.delete(onEvent);
-    if (listeners.size === 0 && alarmListeners.size === 0) {
+    if (!hasSubscribers()) {
       stopRealtimeConnection();
     }
   };
+}
+
+function hasSubscribers() {
+  return listeners.size > 0 || alarmListeners.size > 0;
 }
 
 function ensureRealtimeConnection() {
@@ -111,6 +115,7 @@ function connectWebSocket() {
   socket = task;
 
   task.onOpen(() => {
+    if (gen !== connectGeneration || socket !== task) return;
     socketOpening = false;
     socketOpen = true;
     realtimeState.status = 'online';
@@ -119,6 +124,7 @@ function connectWebSocket() {
   });
 
   task.onMessage((event) => {
+    if (gen !== connectGeneration || socket !== task) return;
     const parsed = parseEnvelope(event.data);
     if (!parsed) return;
     realtimeState.lastMessageAt = parsed.ts;
@@ -130,17 +136,19 @@ function connectWebSocket() {
   });
 
   task.onError(() => {
+    if (gen !== connectGeneration || socket !== task) return;
     socketOpening = false;
     realtimeState.status = 'error';
     realtimeState.error = 'WebSocket 连接异常';
   });
 
   task.onClose((event) => {
+    if (gen !== connectGeneration || socket !== task) return;
     socket = null;
     socketOpening = false;
     socketOpen = false;
 
-    if (closingIntentionally || (listeners.size === 0 && alarmListeners.size === 0)) {
+    if (closingIntentionally || !hasSubscribers()) {
       realtimeState.status = 'idle';
       return;
     }
@@ -153,8 +161,7 @@ function connectWebSocket() {
         refreshAccessToken().then((newToken) => {
           reconnecting = false;
           if (connectGeneration !== gen) return;
-          const hasSubscribers = listeners.size > 0 || alarmListeners.size > 0;
-          if (!hasSubscribers) {
+          if (!hasSubscribers()) {
             realtimeState.status = 'idle';
             realtimeState.error = '';
           } else if (newToken) {
@@ -177,7 +184,7 @@ function connectWebSocket() {
 }
 
 function scheduleReconnect(reason: string) {
-  if (listeners.size === 0 && alarmListeners.size === 0) return;
+  if (!hasSubscribers()) return;
 
   realtimeState.attempts += 1;
   realtimeState.status = 'reconnecting';
@@ -191,6 +198,7 @@ function scheduleReconnect(reason: string) {
 }
 
 function stopRealtimeConnection() {
+  connectGeneration++;
   clearReconnectTimer();
   if (mockTimer !== null) {
     clearInterval(mockTimer);
@@ -249,7 +257,8 @@ export function reconnectRealtime() {
     ensureRealtimeConnection();
     return;
   }
-  if (listeners.size === 0 && alarmListeners.size === 0) return;
+  if (!hasSubscribers()) return;
+  connectGeneration++;
   clearReconnectTimer();
   reconnecting = false;
   if (socket) {

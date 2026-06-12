@@ -6,19 +6,20 @@ const props = defineProps<{
   dataSource?: string;
 }>();
 
-function openLink(url: string) {
+function openLink(href: string) {
+  const copyLink = () => {
+    uni.setClipboardData({
+      data: href,
+      success: () => uni.showToast({ title: '链接已复制', icon: 'success' })
+    });
+  };
   // #ifdef H5
-  window.open(url, '_blank');
+  window.open(href, '_blank');
   // #endif
   // #ifndef H5
-  uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => {
-    uni.setClipboardData({
-      data: url,
-      success: () => {
-        uni.showToast({ title: '链接已复制到剪贴板', icon: 'none' });
-      }
-    });
-  }});
+  const openURL = (uni as unknown as { openURL?: (options: { url: string; fail?: () => void }) => void }).openURL;
+  if (typeof openURL === 'function') openURL({ url: href, fail: copyLink });
+  else copyLink();
   // #endif
 }
 

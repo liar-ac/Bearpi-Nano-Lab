@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, CheckCircle2, Cpu, Gauge, RadioTower, RefreshC
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
-import { realtimeState } from '@/api/realtime';
+import { realtimeState, realtimeStatusLabel } from '@/api/realtime';
 import { useDeviceStore } from '@/stores/devices';
 import type { Device, DeviceStatus, LabSlot } from '@/types/domain';
 import { formatValue, relativeTime, statusLabel } from '@/utils/format';
@@ -186,7 +186,7 @@ function selectSlot(slot: LabSlot) {
         <p>按先接入先占位的槽位顺序查看板卡状态、功耗风险和最近上报情况。</p>
       </div>
       <div class="ops-status-grid">
-        <span><RadioTower :size="16" />{{ realtimeState.status }}</span>
+        <span><RadioTower :size="16" />{{ realtimeStatusLabel[realtimeState.status] }}</span>
         <span><Cpu :size="16" />{{ occupiedSlots.length }}块板</span>
         <span><Zap :size="16" />{{ formatValue(totalPower, 'mW') }}</span>
       </div>

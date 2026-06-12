@@ -17,7 +17,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import { fetchBulkTasks, fetchDevices, retryBulkTask, sendBulkCommand } from '@/api/lab';
-import { realtimeState } from '@/api/realtime';
+import { realtimeState, realtimeStatusLabel } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
 import type { BulkTask, BulkTaskActuator, BulkTaskMode, BulkTaskStatus, Device } from '@/types/domain';
 import { formatDateTime, relativeTime } from '@/utils/format';
@@ -292,7 +292,7 @@ function taskType(status: BulkTaskStatus) {
         <p>把开灯、关灯、开电机和自动模式变成可追踪任务，按板卡查看进度、失败和日志。</p>
       </div>
       <div class="ops-status-grid">
-        <span><Activity :size="16" />{{ realtimeState.status }}</span>
+        <span><Activity :size="16" />{{ realtimeStatusLabel[realtimeState.status] }}</span>
         <span><ClipboardList :size="16" />{{ tasks.length }}个任务</span>
         <span><TriangleAlert :size="16" />{{ tasks.reduce((sum, task) => sum + task.failed, 0) }}个失败</span>
       </div>

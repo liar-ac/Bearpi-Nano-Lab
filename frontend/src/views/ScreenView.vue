@@ -13,7 +13,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { fetchAlarms } from '@/api/lab';
-import { realtimeState, realtimeStatusLabel } from '@/api/realtime';
+import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
 import { useDeviceStore } from '@/stores/devices';
 import type { Alarm, Device } from '@/types/domain';
 import { alarmLevelLabel, formatValue, relativeTime, statusLabel } from '@/utils/format';
@@ -24,6 +24,7 @@ const now = ref(new Date());
 const error = ref('');
 const loading = ref(false);
 
+let unsubscribe: (() => void) | null = null;
 let clockTimer: number | null = null;
 let refreshTimer: number | null = null;
 
@@ -57,6 +58,7 @@ const riskDevices = computed(() =>
 const slotPreview = computed(() => store.labSlots.filter((slot) => slot.device).slice(0, 72));
 
 onMounted(() => {
+  unsubscribe = subscribeRealtime(store.applyRealtime);
   clockTimer = window.setInterval(() => {
     now.value = new Date();
   }, 1000);
@@ -67,6 +69,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  unsubscribe?.();
   if (clockTimer !== null) window.clearInterval(clockTimer);
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
 });

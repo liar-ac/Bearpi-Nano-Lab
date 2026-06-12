@@ -85,13 +85,22 @@ voltage_sampled / current_sampled / power_sampled
 power_mcu / power_wifi / power_sensor / power_motor / power_light
 ```
 
-Default behavior is still estimated because BearPi-HM Nano cannot know board current from software alone:
+Default behavior is still estimated because BearPi-HM Nano cannot know board current from software alone. The estimate is now dynamic: it uses the board SN, IA1 temperature/humidity/light readings, and motor/light state so multiple boards do not collapse to the same fixed power number when they have unique SNs and different environments.
 
 ```text
 voltage = 5.0V
-power = 250mW(MCU) + 120mW(WiFi) + 35mW(sensor) + 600mW(motor when on) + 150mW(light when on)
+power = calibrated(MCU + WiFi + sensor + motor + light)
 current = power / voltage
 ```
+
+For estimated mode:
+
+```c
+#define BEARPI_POWER_ESTIMATE_CALIBRATION 0.0f
+#define BEARPI_POWER_ESTIMATE_SN_TRIM_ENABLE 1
+```
+
+`BEARPI_POWER_ESTIMATE_CALIBRATION=0.0f` means auto-trim by SN. If you measure a board with a USB power meter or current-sense module, set a per-board calibration factor such as `0.96f` or `1.08f`. Keep `BEARPI_DEVICE_SN` unique for each physical board; flashing the same SN to multiple boards makes the backend treat them as the same board and also gives the estimator the same SN trim.
 
 For real-time measurement, wire sampling hardware to ADC and edit `include/bearpi_lab_config.h`:
 

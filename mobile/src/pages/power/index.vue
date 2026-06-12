@@ -96,6 +96,9 @@ const totalPower = computed(() => onlineDevices.value.reduce((sum, device) => su
 const averagePower = computed(() =>
   onlineDevices.value.length ? totalPower.value / onlineDevices.value.length : 0
 );
+const sampledPowerDevices = computed(() =>
+  onlineDevices.value.filter((device) => isSampled(device, 'power_sampled')).length
+);
 
 const peakDevice = computed(() =>
   filteredDevices.value.reduce<Device | null>((peak, device) => {
@@ -108,17 +111,17 @@ const summaryCards = computed(() => [
   {
     label: '在线板卡',
     value: `${onlineDevices.value.length}/${devices.value.length}`,
-    detail: '参与实时功耗统计'
+    detail: `${sampledPowerDevices.value}块ADC参与`
   },
   {
     label: '总功耗',
     value: formatValue(totalPower.value, 'mW'),
-    detail: '在线板卡瞬时合计'
+    detail: sampledPowerDevices.value ? '实测优先，估算兜底' : '当前为动态估算'
   },
   {
     label: '平均功耗',
     value: formatValue(averagePower.value, 'mW'),
-    detail: '单板平均瞬时'
+    detail: '按功耗来源标注'
   },
   {
     label: '最高功耗',

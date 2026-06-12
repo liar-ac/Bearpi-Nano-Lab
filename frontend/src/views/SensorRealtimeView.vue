@@ -99,8 +99,15 @@ onMounted(async () => {
 });
 
 watch([deviceId, sensorId], async () => {
+  unsubscribe?.();
+  unsubscribe = null;
   points.value = [];
   await load();
+  if (!cancelled) {
+    unsubscribe = subscribeRealtime((message) => {
+      appendRealtimePoint(message);
+    });
+  }
 });
 
 onBeforeUnmount(() => {

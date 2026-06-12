@@ -108,6 +108,10 @@ const averagePower = computed(() =>
   onlineDevices.value.length ? totalPower.value / onlineDevices.value.length : 0
 );
 
+const sampledPowerDevices = computed(() =>
+  onlineDevices.value.filter((device) => isSampled(device, 'power_sampled')).length
+);
+
 const peakDevice = computed(() =>
   filteredDevices.value.reduce<Device | null>((peak, device) => {
     if (!peak) return device;
@@ -119,21 +123,21 @@ const summaryCards = computed(() => [
   {
     label: '在线板卡',
     value: `${onlineDevices.value.length}/${devices.value.length}`,
-    detail: '参与实时功耗统计',
+    detail: `${sampledPowerDevices.value}块ADC参与`,
     icon: Cpu,
     tone: 'cyan'
   },
   {
     label: '总功耗',
     value: formatValue(totalPower.value, 'mW'),
-    detail: '在线板卡瞬时合计',
+    detail: sampledPowerDevices.value ? '实测优先，估算兜底' : '当前为动态估算',
     icon: Zap,
     tone: 'amber'
   },
   {
     label: '平均功耗',
     value: formatValue(averagePower.value, 'mW'),
-    detail: '单板平均瞬时功耗',
+    detail: '按功耗来源标注',
     icon: Gauge,
     tone: 'green'
   },
@@ -288,14 +292,15 @@ const aiAbortController = ref<AbortController | null>(null);
 async function runAiAnalysis() {
   if (!selectedTrendDevice.value) return;
   aiAbortController.value?.abort();
-  aiAbortController.value = new AbortController();
+  const ctrl = new AbortController();
+  aiAbortController.value = ctrl;
   aiVisible.value = true;
   aiLoading.value = true;
   aiReply.value = '';
   aiError.value = '';
   aiDataSource.value = '';
   try {
-    const result = await sendAiChat('data_analysis', buildAnalysisContext(), aiAbortController.value.signal) as { reply: string; data_source?: string };
+    const result = await sendAiChat('data_analysis', buildAnalysisContext(), ctrl.signal) as { reply: string; data_source?: string };
     aiReply.value = result.reply;
     aiDataSource.value = result.data_source ?? '';
   } catch (cause) {
@@ -304,7 +309,7 @@ async function runAiAnalysis() {
     ElMessage.error(aiError.value);
   } finally {
     aiLoading.value = false;
-    aiAbortController.value = null;
+    if (aiAbortController.value === ctrl) aiAbortController.value = null;
   }
 }
 

@@ -39,6 +39,7 @@ let reconnectTimer: number | null = null;
 let mockTimer: number | null = null;
 let closingIntentionally = false;
 let reconnecting = false;
+let connectGeneration = 0;
 
 export function subscribeRealtime(onMessage: (message: RealtimeMessage) => void) {
   listeners.add(onMessage);
@@ -46,7 +47,7 @@ export function subscribeRealtime(onMessage: (message: RealtimeMessage) => void)
 
   return () => {
     listeners.delete(onMessage);
-    if (listeners.size === 0 && alarmListeners.size === 0) {
+    if (!hasSubscribers()) {
       stopRealtimeConnection();
     }
   };
@@ -58,10 +59,14 @@ export function subscribeAlarmEvents(onEvent: (event: RealtimeAlarmEvent) => voi
 
   return () => {
     alarmListeners.delete(onEvent);
-    if (listeners.size === 0 && alarmListeners.size === 0) {
+    if (!hasSubscribers()) {
       stopRealtimeConnection();
     }
   };
+}
+
+function hasSubscribers() {
+  return listeners.size > 0 || alarmListeners.size > 0;
 }
 
 function ensureRealtimeConnection() {
@@ -98,21 +103,25 @@ function connectWebSocket() {
     return;
   }
 
+  const gen = ++connectGeneration;
   clearReconnectTimer();
   closingIntentionally = false;
   realtimeState.status = realtimeState.attempts > 0 ? 'reconnecting' : 'connecting';
   realtimeState.error = '';
 
   const url = `${WS_BASE}?token=${encodeURIComponent(token)}`;
-  socket = new WebSocket(url);
+  const currentSocket = new WebSocket(url);
+  socket = currentSocket;
 
-  socket.onopen = () => {
+  currentSocket.onopen = () => {
+    if (gen !== connectGeneration || socket !== currentSocket) return;
     realtimeState.status = 'online';
     realtimeState.attempts = 0;
     realtimeState.error = '';
   };
 
-  socket.onmessage = (event) => {
+  currentSocket.onmessage = (event) => {
+    if (gen !== connectGeneration || socket !== currentSocket) return;
     const parsed = parseEnvelope(event.data);
     if (!parsed) return;
     realtimeState.lastMessageAt = parsed.ts;
@@ -123,14 +132,16 @@ function connectWebSocket() {
     }
   };
 
-  socket.onerror = () => {
+  currentSocket.onerror = () => {
+    if (gen !== connectGeneration || socket !== currentSocket) return;
     realtimeState.status = 'error';
     realtimeState.error = 'WebSocket 连接异常';
   };
 
-  socket.onclose = (event) => {
+  currentSocket.onclose = (event) => {
+    if (gen !== connectGeneration || socket !== currentSocket) return;
     socket = null;
-    if (closingIntentionally || (listeners.size === 0 && alarmListeners.size === 0)) {
+    if (closingIntentionally || !hasSubscribers()) {
       realtimeState.status = 'idle';
       return;
     }
@@ -142,8 +153,8 @@ function connectWebSocket() {
         reconnecting = true;
         refreshAccessToken().then((newToken) => {
           reconnecting = false;
-          const hasSubscribers = listeners.size > 0 || alarmListeners.size > 0;
-          if (!hasSubscribers) {
+          if (connectGeneration !== gen) return;
+          if (!hasSubscribers()) {
             realtimeState.status = 'idle';
             realtimeState.error = '';
           } else if (newToken) {
@@ -166,7 +177,7 @@ function connectWebSocket() {
 }
 
 function scheduleReconnect(reason: string) {
-  if (listeners.size === 0 && alarmListeners.size === 0) return;
+  if (!hasSubscribers()) return;
 
   realtimeState.attempts += 1;
   realtimeState.status = 'reconnecting';
@@ -180,6 +191,7 @@ function scheduleReconnect(reason: string) {
 }
 
 function stopRealtimeConnection() {
+  connectGeneration++;
   clearReconnectTimer();
   reconnecting = false;
   if (mockTimer !== null) {
@@ -234,7 +246,8 @@ export function reconnectRealtime() {
     ensureRealtimeConnection();
     return;
   }
-  if (listeners.size === 0 && alarmListeners.size === 0) return;
+  if (!hasSubscribers()) return;
+  connectGeneration++;
   clearReconnectTimer();
   if (socket) {
     closingIntentionally = true;

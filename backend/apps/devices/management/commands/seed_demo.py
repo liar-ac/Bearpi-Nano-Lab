@@ -56,11 +56,27 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Demo users seeded. Device list is now driven by real board ingest."))
 
     def create_users(self, admin_password):
+        # 生产模式下为所有用户生成随机密码并打印到stdout
+        if not settings.DEBUG:
+            exp_password = secrets.token_urlsafe(12)
+            lab_password = secrets.token_urlsafe(12)
+            viewer_password = secrets.token_urlsafe(12)
+            self.stdout.write(self.style.WARNING(
+                f"生产模式：已为非admin用户生成随机密码\n"
+                f"  exp 密码: {exp_password}\n"
+                f"  lab 密码: {lab_password}\n"
+                f"  viewer 密码: {viewer_password}"
+            ))
+        else:
+            exp_password = "admin123"
+            lab_password = "admin123"
+            viewer_password = "admin123"
+
         users = [
             ("admin", admin_password, True, True, "实验室管理员", UserRoleProfile.Role.ADMIN),
-            ("exp", "admin123", False, False, "实验员", UserRoleProfile.Role.EXPERIMENTER),
-            ("lab", "admin123", False, False, "实验员", UserRoleProfile.Role.EXPERIMENTER),
-            ("viewer", "admin123", False, False, "只读观察员", UserRoleProfile.Role.VIEWER),
+            ("exp", exp_password, False, False, "实验员", UserRoleProfile.Role.EXPERIMENTER),
+            ("lab", lab_password, False, False, "实验员", UserRoleProfile.Role.EXPERIMENTER),
+            ("viewer", viewer_password, False, False, "只读观察员", UserRoleProfile.Role.VIEWER),
         ]
         for username, password, is_staff, is_superuser, first_name, role in users:
             user, _ = User.objects.get_or_create(username=username)

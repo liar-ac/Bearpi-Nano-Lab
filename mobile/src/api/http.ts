@@ -40,6 +40,7 @@ function rawRequest<T>(path: string, options: RequestOptions, token: string | nu
       return;
     }
     let onAbort: (() => void) | undefined;
+    let settled = false;
     const cleanup = () => { if (signal && onAbort) signal.removeEventListener('abort', onAbort); };
     const task = uni.request({
       url: `${API_BASE}${path}`,
@@ -47,12 +48,29 @@ function rawRequest<T>(path: string, options: RequestOptions, token: string | nu
       data: options.data as Record<string, unknown> | string | undefined,
       header,
       timeout: 15000,
-      success: (res) => { cleanup(); resolve({ statusCode: res.statusCode, data: res.data as T }); },
-      fail: (err) => { cleanup(); reject(new ApiError(err.errMsg || '网络异常')); }
+      success: (res) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve({ statusCode: res.statusCode, data: res.data as T });
+      },
+      fail: (err) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new ApiError(err.errMsg || '网络异常'));
+      }
     });
     if (signal) {
       onAbort = () => {
-        task.abort();
+        if (settled) return;
+        settled = true;
+        cleanup();
+        try {
+          task.abort();
+        } catch {
+          // ignore platform-specific abort errors after request completion
+        }
         reject(new ApiError('请求已取消'));
       };
       signal.addEventListener('abort', onAbort, { once: true });

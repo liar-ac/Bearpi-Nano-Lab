@@ -508,15 +508,6 @@ def reserved_known_slot_nos():
     }
 
 
-def next_slot_no():
-    used = set(Device.objects.values_list("slot_no", flat=True))
-    for slot_no in range(1, 121):
-        if slot_no not in used:
-            return slot_no
-    max_slot = Device.objects.aggregate(value=Max("slot_no"))["value"] or 0
-    return max_slot + 1
-
-
 def next_unreserved_slot_no_locked():
     used = set(
         Device.objects.select_for_update().values_list("slot_no", flat=True)

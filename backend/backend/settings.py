@@ -288,7 +288,7 @@ RAWPOINT_RETENTION_DAYS = int(os.getenv("RAWPOINT_RETENTION_DAYS", "7"))
 if not DEBUG:
     import warnings
     if SECRET_KEY.startswith("django-insecure"):
-        warnings.warn("DJANGO_SECRET_KEY 仍是默认开发用 key，生产环境必须替换。", RuntimeWarning)
+        warnings.warn("DJANGO_SECRET_KEY 仍是默认开发用key，生产环境必须替换。", RuntimeWarning)
     if not DEVICE_TOKEN_SECRET:
         warnings.warn("DEVICE_TOKEN_SECRET 未配置，无法启用每板独立上报 token。", RuntimeWarning)
     if DEVICE_INGEST_TOKEN in {"", "bearpi-dev-token"}:

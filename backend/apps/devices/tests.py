@@ -19,7 +19,7 @@ from apps.common.device_gateway import (
     KNOWN_BOARD_PROFILES,
     board_code_from_identifier,
     device_token_for_identifier,
-    next_slot_no,
+    next_slot_no_locked,
     resolve_or_register_device,
 )
 from apps.devices.models import Device, DeviceCommand, Sensor
@@ -296,8 +296,11 @@ class DeviceAutoRegisterTests(TestCase):
         self.assertEqual(device.slot_no, 2)
         self.assertGreaterEqual(old_device.slot_no, 5)
 
-    def test_next_slot_no_starts_from_one(self):
-        self.assertEqual(next_slot_no(), 1)
+    def test_next_slot_no_locked_starts_from_one(self):
+        from django.db import transaction
+        with transaction.atomic():
+            self.assertEqual(next_slot_no_locked(), 1)
         resolve_or_register_device({"sn": "BEARPI-NANO-A001"})
-        next_value = next_slot_no()
+        with transaction.atomic():
+            next_value = next_slot_no_locked()
         self.assertGreaterEqual(next_value, 2)

@@ -125,14 +125,15 @@ const aiAbortController = ref<AbortController | null>(null);
 
 async function runAiSuggestion() {
   aiAbortController.value?.abort();
-  aiAbortController.value = new AbortController();
+  const ctrl = new AbortController();
+  aiAbortController.value = ctrl;
   aiVisible.value = true;
   aiLoading.value = true;
   aiReply.value = '';
   aiError.value = '';
   aiDataSource.value = '';
   try {
-    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext(), aiAbortController.value.signal) as { reply: string; data_source?: string };
+    const result = await sendAiChat('rule_suggestion', buildRuleSuggestionContext(), ctrl.signal) as { reply: string; data_source?: string };
     aiReply.value = result.reply;
     aiDataSource.value = result.data_source ?? '';
   } catch (cause) {
@@ -141,7 +142,7 @@ async function runAiSuggestion() {
     ElMessage.error(aiError.value);
   } finally {
     aiLoading.value = false;
-    aiAbortController.value = null;
+    if (aiAbortController.value === ctrl) aiAbortController.value = null;
   }
 }
 
