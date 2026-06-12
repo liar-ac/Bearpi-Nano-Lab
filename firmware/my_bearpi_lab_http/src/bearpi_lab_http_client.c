@@ -75,8 +75,8 @@
 
 E53_IA1_Data_TypeDef E53_IA1_Data;
 
-static int g_motorOverride = ACTUATOR_AUTO;
-static int g_lightOverride = ACTUATOR_AUTO;
+static int g_motorOverride = ACTUATOR_OFF;
+static int g_lightOverride = ACTUATOR_OFF;
 static char g_deviceToken[DEVICE_TOKEN_HEX_SIZE];
 static int g_deviceTokenReady = 0;
 static const char *g_activeServerHost = BEARPI_SERVER_HOST;
