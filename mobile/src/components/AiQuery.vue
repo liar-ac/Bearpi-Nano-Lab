@@ -3,6 +3,9 @@ import { computed, nextTick, ref } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiQuery, parseAiCommand, sendCommand, sendBulkCommand } from '@/api/lab';
 import type { AiCommandResult } from '@/api/lab';
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore();
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -129,6 +132,10 @@ async function detectCmd(idx: number) {
 }
 
 async function execCmd(idx: number) {
+  if (!auth.canCommand) {
+    uni.showToast({ title: '当前角色无权下发指令', icon: 'none' });
+    return;
+  }
   const cmd = messages.value[idx];
   if (!cmd?.command) return;
   cmd.commandStatus = 'executing';

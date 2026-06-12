@@ -7,6 +7,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiQuery, parseAiCommand, sendCommand, sendBulkCommand, type AiCommandResult } from '@/api/lab';
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore();
 
 interface ChatMessage {
   id: string;
@@ -284,6 +287,10 @@ async function detectCmd(idx: number) {
 }
 
 async function execCmd(idx: number) {
+  if (!auth.canCommand) {
+    ElMessage.warning('当前角色无权下发指令');
+    return;
+  }
   if (!currentSession.value) return;
   const cmd = currentSession.value.messages[idx]; if (!cmd?.command) return;
   snapshotScroll();
