@@ -130,7 +130,7 @@ class TelemetryIngestView(APIView):
             if device.status != Device.Status.MAINTENANCE:
                 device.status = Device.Status.WARNING if has_open_alarm else Device.Status.ONLINE
                 if has_open_alarm:
-                    first_alarm = Alarm.objects.filter(device=device, status=Alarm.Status.NEW).order_by("created_at").first()
+                    first_alarm = Alarm.objects.filter(device=device, status=Alarm.Status.NEW).order_by("ts").first()
                     device.abnormal_reason = first_alarm.message if first_alarm else ""
                 else:
                     device.abnormal_reason = ""
