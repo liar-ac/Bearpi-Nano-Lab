@@ -330,7 +330,7 @@ def close_resolved_alarms(sensor):
         device=sensor.device,
         sensor=sensor,
         status=Alarm.Status.NEW,
-    ).update(status=Alarm.Status.CLOSED)
+    ).select_for_update().update(status=Alarm.Status.CLOSED)
 
 
 def upsert_alarm(sensor, ts, level, message):

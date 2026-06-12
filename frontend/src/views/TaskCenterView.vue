@@ -92,14 +92,9 @@ const statusFilters: Array<{ label: string; value: BulkTaskStatus | 'all' }> = [
 ];
 
 const controllableCount = computed(() => {
-  // 与后端 DeviceBulkCommandView 的 target 过滤逻辑保持一致
-  // target=online: status in {online,warning} && 活跃；target=all: 非 offline 且活跃
-  const ACTIVE_TTL_MS = 45_000;
-  const now = Date.now();
+  /* 使用后端 DeviceSerializer 计算的 status（已基于 TTL 判断在线状态），
+     避免前端硬编码 TTL 与后端配置不一致。 */
   return devices.value.filter((device) => {
-    const last = device.lastSeen ? new Date(device.lastSeen).getTime() : 0;
-    const active = last > 0 && now - last <= ACTIVE_TTL_MS;
-    if (!active) return false;
     if (target.value === 'all') return device.status !== 'offline';
     return device.status === 'online' || device.status === 'warning';
   }).length;
