@@ -597,6 +597,8 @@ watch(input, () => nextTick(autoH));
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(241, 244, 248, 0.78)),
