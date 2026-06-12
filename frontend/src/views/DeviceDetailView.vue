@@ -53,7 +53,7 @@ const actuatorControls = [
 ];
 
 const overrideModes: OverrideMode[] = ['auto', 'on', 'off'];
-const actuatorSensorCodes = new Set(['motor', 'fan', 'ventilation', 'lamp', 'led']);
+const actuatorSensorCodes = new Set(['motor', 'fan', 'ventilation', 'lamp', 'led', 'fill_light']);
 
 const sensorRows = computed(() =>
   device.value?.sensors.filter((sensor) => !actuatorSensorCodes.has(sensor.code)) ?? []

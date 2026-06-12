@@ -16,12 +16,13 @@ const error = ref('');
 const motorMode = ref<'auto' | 'on' | 'off'>('auto');
 const lightMode = ref<'auto' | 'on' | 'off'>('auto');
 
+const actuatorCodes = ['motor', 'fan', 'ventilation', 'lamp', 'led', 'fill_light'];
 const sensorRows = computed(() => device.value?.sensors ?? []);
 const environmentSensors = computed(() =>
-  sensorRows.value.filter((sensor) => !['motor', 'fan', 'ventilation', 'lamp', 'led'].includes(sensor.code))
+  sensorRows.value.filter((sensor) => !actuatorCodes.includes(sensor.code))
 );
 const actuatorSensors = computed(() =>
-  sensorRows.value.filter((sensor) => ['motor', 'fan', 'ventilation', 'lamp', 'led'].includes(sensor.code))
+  sensorRows.value.filter((sensor) => actuatorCodes.includes(sensor.code))
 );
 
 onLoad((query) => {
@@ -131,7 +132,7 @@ function showConfirm(content: string) {
 function syncActuatorState(logs: CommandResult[]) {
   let motorFound = false;
   let lightFound = false;
-  for (let i = logs.length - 1; i >= 0; i--) {
+  for (let i = 0; i < logs.length; i++) {
     const command = logs[i];
     if (command.command !== 'set_param' || !command.params) continue;
     if (!motorFound) {
