@@ -180,7 +180,7 @@ function rejectCmd(idx: number) {
 
 function useExample(question: string) {
   input.value = question;
-  void send();
+  nextTick(() => send());
 }
 
 function open() {
