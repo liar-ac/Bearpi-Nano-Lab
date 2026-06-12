@@ -653,7 +653,7 @@ watch(input, () => nextTick(autoH));
   --red: #ff453a;
   display: grid;
   grid-template-columns: 238px minmax(0, 1fr);
-  align-items: stretch;
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
   color: var(--text);
@@ -667,6 +667,7 @@ watch(input, () => nextTick(autoH));
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   overflow: hidden;
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   background:
