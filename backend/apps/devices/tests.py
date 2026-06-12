@@ -271,7 +271,9 @@ class BoardIdentificationTests(TestCase):
         self.assertEqual(board_code_from_identifier("BEARPI-NANO-A003"), "A003")
 
     def test_board_code_fallback_to_trailing(self):
-        self.assertEqual(board_code_from_identifier("xxx-002"), "A002")
+        # 只对包含BEARPI/NANO关键字的标识符使用尾部数字匹配
+        self.assertEqual(board_code_from_identifier("BEARPI-002"), "A002")
+        self.assertEqual(board_code_from_identifier("xxx-002"), None)  # 不含关键字，不匹配
         self.assertEqual(board_code_from_identifier(None), None)
 
 

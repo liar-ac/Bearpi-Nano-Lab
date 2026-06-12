@@ -234,15 +234,18 @@ def board_code_from_identifier(value):
     for code in KNOWN_BOARD_PROFILES:
         if code in identifier:
             return code
-    trailing_number = "".join(character for character in identifier[-4:] if character.isdigit())
-    if trailing_number in {"001", "1"}:
-        return "A001"
-    if trailing_number in {"002", "2"}:
-        return "A002"
-    if trailing_number in {"003", "3"}:
-        return "A003"
-    if trailing_number in {"004", "4"}:
-        return "A004"
+    # 只对看起来像板卡SN的标识符使用尾部数字匹配（包含BEARPI或NANO关键字）
+    upper = identifier.upper()
+    if "BEARPI" in upper or "NANO" in upper:
+        trailing_number = "".join(character for character in identifier[-4:] if character.isdigit())
+        if trailing_number in {"001", "1"}:
+            return "A001"
+        if trailing_number in {"002", "2"}:
+            return "A002"
+        if trailing_number in {"003", "3"}:
+            return "A003"
+        if trailing_number in {"004", "4"}:
+            return "A004"
     return None
 
 

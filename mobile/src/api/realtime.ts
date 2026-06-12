@@ -200,6 +200,7 @@ function stopRealtimeConnection() {
   }
   socketOpening = false;
   socketOpen = false;
+  reconnecting = false;
   realtimeState.status = 'idle';
   realtimeState.attempts = 0;
   realtimeState.error = '';
@@ -247,6 +248,7 @@ export function reconnectRealtime() {
   }
   if (listeners.size === 0 && alarmListeners.size === 0) return;
   clearReconnectTimer();
+  reconnecting = false;
   if (socket) {
     closingIntentionally = true;
     try {

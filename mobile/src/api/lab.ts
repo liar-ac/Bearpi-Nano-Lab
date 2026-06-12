@@ -172,7 +172,7 @@ export function simulateRealtime(sensorId: number) {
 
 export function fetchAccountUsers() {
   if (USE_MOCK) return mockFetchAccountUsers();
-  return request<{ results: AccountUser[] }>('/auth/users').then(r => r.results ?? []);
+  return request<AccountUser[] | { results: AccountUser[] }>('/auth/users').then(r => Array.isArray(r) ? r : r.results ?? []);
 }
 
 export function updateAccountUserRole(userId: number, role: UserRole) {
@@ -185,7 +185,7 @@ export function updateAccountUserRole(userId: number, role: UserRole) {
 
 export function fetchRules() {
   if (USE_MOCK) return mockFetchRules();
-  return request<{ results: RuleConfig[] }>('/rules').then(r => r.results ?? []);
+  return request<RuleConfig[] | { results: RuleConfig[] }>('/rules').then(r => Array.isArray(r) ? r : r.results ?? []);
 }
 
 export function updateRule(sensorId: number, payload: { min?: number | null; max?: number | null }) {
