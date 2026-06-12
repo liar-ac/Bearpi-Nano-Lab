@@ -183,7 +183,15 @@ def serialize_bulk_task(batch_id, commands):
         DeviceCommand.Status.ACKED: 0,
         DeviceCommand.Status.FAILED: 0,
     }
+    # 超时阈值：5分钟内未ack的sent命令视为失败
+    stuck_cutoff = timezone.now() - timedelta(minutes=5)
     for command in commands:
+        # 如果sent命令超过5分钟未ack，视为失败
+        if command.status == DeviceCommand.Status.SENT and command.created_at < stuck_cutoff:
+            command.status = DeviceCommand.Status.FAILED
+            command.message = "设备超时未回执，自动判定失败"
+            command.ack_at = timezone.now()
+            command.save(update_fields=["status", "message", "ack_at"])
         counts[command.status] = counts.get(command.status, 0) + 1
 
     total = len(commands)
