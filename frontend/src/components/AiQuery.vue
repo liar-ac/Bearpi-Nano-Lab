@@ -649,7 +649,7 @@ watch(input, () => nextTick(autoH));
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.side-new :deep(svg) {
+.side-new svg {
   flex: 0 0 13px;
   width: 13px;
   height: 13px;
