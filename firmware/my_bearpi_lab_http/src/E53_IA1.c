@@ -272,7 +272,7 @@ void Light_StatusSet(E53_IA1_Status_ENUM status)
 {
 	if(status == ON)
 		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_14, 0);//设置GPIO_14输出低电平点亮灯(低电平有效)
-	if(status == OFF)
+	else
 		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_14, 1);//设置GPIO_14输出高电平关闭灯(低电平有效)
 }
 
@@ -288,7 +288,7 @@ void Motor_StatusSet(E53_IA1_Status_ENUM status)
 {
 	if(status == ON)
 		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_8, 1);//设置GPIO_8输出高电平打开电机
-	if(status == OFF)
+	else
 		GpioSetOutputVal(WIFI_IOT_IO_NAME_GPIO_8, 0);//设置GPIO_8输出低电平关闭电机
 }
 

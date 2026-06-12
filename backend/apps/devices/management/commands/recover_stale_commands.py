@@ -13,8 +13,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--timeout",
             type=int,
-            default=300,
-            help="SENT 状态最长允许等待的秒数（默认 300s）。",
+            default=600,
+            help="SENT 状态最长允许等待的秒数（默认 600s）。注意：此计时基于 created_at 而非 sent_at，因此实际等待时间可能更短。",
         )
         parser.add_argument(
             "--message",

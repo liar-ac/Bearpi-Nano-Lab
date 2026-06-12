@@ -1042,7 +1042,9 @@ static int PullAndAckCommand(void)
         ReadSensorSnapshot();
         return AckCommand(commandId, "acked", "IA1 actuator override updated");
     }
-    return AckCommand(commandId, "acked", "BearPi command executed");
+    /* No recognized actuator params - ack but report no action taken */
+    printf("[bearpi-lab] command %d has no recognized actuator params\r\n", commandId);
+    return AckCommand(commandId, "acked", "command received but no actuator params recognized");
 }
 
 static void BearPiLabTask(void)
@@ -1089,8 +1091,13 @@ static void BearPiLabTask(void)
 
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
             printf("[bearpi-lab] too many failures, attempting WiFi reconnect...\r\n");
-            WifiConnect(BEARPI_WIFI_SSID, BEARPI_WIFI_PASSWORD);
-            consecutiveFailures = 0;
+            int wifiRet = WifiConnect(BEARPI_WIFI_SSID, BEARPI_WIFI_PASSWORD);
+            if (wifiRet == 0) {
+                consecutiveFailures = 0;
+            } else {
+                printf("[bearpi-lab] WiFi reconnect failed, keeping failure count\r\n");
+                consecutiveFailures = MAX_CONSECUTIVE_FAILURES - 2; /* will retry reconnect soon */
+            }
         }
 
         /* Simple backoff: sleep longer on repeated failures */

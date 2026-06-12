@@ -101,6 +101,7 @@ onMounted(async () => {
 watch([deviceId, sensorId], async () => {
   await loadMeta();
   data.value = null;
+  await search();
 });
 
 let searchSeq = 0;

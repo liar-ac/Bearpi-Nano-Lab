@@ -269,7 +269,7 @@ def persist_and_publish(sensor, value, ts):
             has_open_alarm = True
             abnormal_reason = alarm.message
         else:
-            open_alarm = Alarm.objects.filter(device=device, sensor=sensor, status=Alarm.Status.NEW).first()
+            open_alarm = Alarm.objects.filter(device=device, status=Alarm.Status.NEW).first()
             has_open_alarm = open_alarm is not None
             abnormal_reason = open_alarm.message if open_alarm else ""
         if device.status != Device.Status.MAINTENANCE:
@@ -328,7 +328,7 @@ def close_resolved_alarms(sensor):
     Alarm.objects.filter(
         device=sensor.device,
         sensor=sensor,
-        status=Alarm.Status.NEW,
+        status__in=[Alarm.Status.NEW, Alarm.Status.ACKNOWLEDGED],
     ).update(status=Alarm.Status.CLOSED)
 
 

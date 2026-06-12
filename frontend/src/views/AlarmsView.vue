@@ -122,6 +122,7 @@ async function acknowledge(alarm: Alarm) {
 }
 
 function matchesCurrentFilter(alarm: RealtimeAlarmEvent) {
+  if (!statusFilter.value && alarm.status === 'closed') return false;
   if (statusFilter.value && alarm.status !== statusFilter.value) return false;
   if (levelFilter.value && alarm.level !== levelFilter.value) return false;
   return true;
