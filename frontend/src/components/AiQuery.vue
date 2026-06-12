@@ -354,7 +354,8 @@ function editCancel(i: number) { if (currentSession.value) currentSession.value.
 function copy(t: string) { navigator.clipboard.writeText(t).then(() => ElMessage.success('已复制')); }
 function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
 
-function useExample(q: string) {
+function useExample(q: string, event?: MouseEvent) {
+  if (event) event.stopPropagation();
   input.value = q;
   nextTick(() => send());
 }
@@ -449,7 +450,7 @@ watch(input, () => nextTick(autoH));
             <p class="welcome-greeting">您好，我是实验室AI助手</p>
             <p class="welcome-sub">今天想了解什么？</p>
             <div class="welcome-cards">
-              <button v-for="e in examples" :key="e" class="welcome-card" @click="useExample(e)">{{ e }}</button>
+              <button v-for="e in examples" :key="e" class="welcome-card" @click="useExample(e, $event)">{{ e }}</button>
             </div>
           </div>
 
