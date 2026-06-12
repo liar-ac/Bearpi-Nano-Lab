@@ -52,11 +52,6 @@ class DeviceSerializer(serializers.ModelSerializer):
         ]
 
 
-class DeviceListResponseSerializer(serializers.Serializer):
-    count = serializers.IntegerField()
-    results = DeviceSerializer(many=True)
-
-
 class DeviceCommandSerializer(serializers.ModelSerializer):
     deviceId = serializers.IntegerField(source="device_id", read_only=True)
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
