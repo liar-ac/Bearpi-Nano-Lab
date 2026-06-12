@@ -1,3 +1,6 @@
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework import serializers
 
 from apps.devices.models import Device, DeviceCommand, Sensor
@@ -29,6 +32,18 @@ class DeviceSerializer(serializers.ModelSerializer):
     sampleRate = serializers.IntegerField(source="sample_rate")
     abnormalReason = serializers.CharField(source="abnormal_reason")
     sensors = SensorSerializer(many=True, read_only=True)
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        """动态计算设备在线状态：基于last_seen和TTL"""
+        if obj.status == Device.Status.MAINTENANCE:
+            return obj.status
+        if obj.last_seen is None:
+            return Device.Status.OFFLINE
+        cutoff = timezone.now() - timedelta(seconds=settings.DEVICE_ACTIVE_TTL_SECONDS)
+        if obj.last_seen < cutoff:
+            return Device.Status.OFFLINE
+        return obj.status
 
     class Meta:
         model = Device
