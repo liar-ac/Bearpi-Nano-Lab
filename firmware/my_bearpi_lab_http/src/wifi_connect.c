@@ -87,12 +87,16 @@ int WifiConnect(const char *ssid, const char *psk)
     //初始化WIFI
     WiFiInit();
 
-    //使能WIFI
-    WifiErrorCode enableErr = EnableWifi();
-    if (enableErr != WIFI_SUCCESS)
-    {
-        printf("EnableWifi failed, error = %d\r\n", enableErr);
-        return -1;
+    //使能WIFI（如果尚未启用）
+    if (IsWifiActive() == 0) {
+        WifiErrorCode enableErr = EnableWifi();
+        if (enableErr != WIFI_SUCCESS)
+        {
+            printf("EnableWifi failed, error = %d\r\n", enableErr);
+            return -1;
+        }
+    } else {
+        printf("WiFi already active, skipping EnableWifi\r\n");
     }
 
     //判断WIFI是否激活
