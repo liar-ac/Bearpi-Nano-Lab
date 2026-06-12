@@ -354,7 +354,10 @@ function editCancel(i: number) { if (currentSession.value) currentSession.value.
 function copy(t: string) { navigator.clipboard.writeText(t).then(() => ElMessage.success('已复制')); }
 function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
 
-function useExample(q: string) { input.value = q; send(); }
+function useExample(q: string) {
+  input.value = q;
+  nextTick(() => send());
+}
 function open() { visible.value = true; load(); nextTick(() => textareaRef.value?.focus()); }
 function clear() { if (currentSession.value) { currentSession.value.messages = []; queue.value = []; if (generating.value) stop(); save(); } }
 function fmtTime(ts: number) { const d = new Date(ts); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
