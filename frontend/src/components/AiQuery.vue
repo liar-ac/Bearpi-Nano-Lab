@@ -112,6 +112,55 @@ async function remove(id: string) {
   save();
 }
 
+// ── Batch Delete ─────────────────────────────────────────────
+const selectMode = ref(false);
+const selectedIds = ref<Set<string>>(new Set());
+
+function toggleSelectMode() {
+  selectMode.value = !selectMode.value;
+  if (!selectMode.value) {
+    selectedIds.value.clear();
+  }
+}
+
+function toggleSelect(id: string) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id);
+  } else {
+    selectedIds.value.add(id);
+  }
+}
+
+function selectAll() {
+  if (selectedIds.value.size === sessions.value.length) {
+    selectedIds.value.clear();
+  } else {
+    sessions.value.forEach(s => selectedIds.value.add(s.id));
+  }
+}
+
+async function removeSelected() {
+  if (selectedIds.value.size === 0) return;
+  try {
+    await ElMessageBox.confirm(
+      `删除选中的 ${selectedIds.value.size} 个对话？`,
+      '批量删除',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    );
+  } catch { return; }
+
+  const idsToDelete = new Set(selectedIds.value);
+  sessions.value = sessions.value.filter(s => !idsToDelete.has(s.id));
+  selectedIds.value.clear();
+  selectMode.value = false;
+
+  if (!sessions.value.length) create();
+  if (idsToDelete.has(currentSessionId.value)) {
+    currentSessionId.value = sessions.value[0].id;
+  }
+  save();
+}
+
 function startRename(id: string) {
   const s = sessions.value.find((s) => s.id === id);
   if (!s) return;
@@ -401,13 +450,28 @@ watch(input, () => nextTick(autoH));
           <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
           <button class="side-new" type="button" @click="create" title="新建对话(Ctrl+N)"><Plus :size="13" /><span>新建对话</span></button>
         </div>
+        <div class="side-actions-bar">
+          <button class="side-action-btn" :class="{ active: selectMode }" type="button" @click="toggleSelectMode">
+            <CircleCheck :size="14" /> {{ selectMode ? '取消' : '多选' }}
+          </button>
+          <button v-if="selectMode && selectedIds.size > 0" class="side-action-btn danger" type="button" @click="removeSelected">
+            <Delete :size="14" /> 删除({{ selectedIds.size }})
+          </button>
+          <button v-if="selectMode" class="side-action-btn" type="button" @click="selectAll">
+            {{ selectedIds.size === sessions.length ? '取消全选' : '全选' }}
+          </button>
+        </div>
         <div class="side-list">
           <div
             v-for="s in sessions"
             :key="s.id"
             class="side-item"
-            :class="{ active: s.id === currentSessionId, renaming: s.id === renamingId }"
-            @click="switchTo(s.id)"
+            :class="{
+              active: s.id === currentSessionId && !selectMode,
+              renaming: s.id === renamingId,
+              selected: selectedIds.has(s.id)
+            }"
+            @click="selectMode ? toggleSelect(s.id) : switchTo(s.id)"
           >
             <template v-if="s.id === renamingId">
               <input
@@ -419,8 +483,12 @@ watch(input, () => nextTick(autoH));
               />
             </template>
             <template v-else>
+              <span v-if="selectMode" class="side-check" :class="{ checked: selectedIds.has(s.id) }">
+                <CircleCheck v-if="selectedIds.has(s.id)" :size="14" />
+                <span v-else class="check-empty"></span>
+              </span>
               <span class="side-title">{{ s.title }}</span>
-              <div class="side-actions">
+              <div v-if="!selectMode" class="side-actions">
                 <button class="side-btn" type="button" title="重命名" @click.stop="startRename(s.id)"><Edit :size="12" /></button>
                 <button class="side-btn" type="button" title="删除" @click.stop="remove(s.id)"><Delete :size="12" /></button>
               </div>
@@ -663,6 +731,75 @@ watch(input, () => nextTick(autoH));
   background: #ffffff;
   color: #0a84ff;
   box-shadow: 0 6px 14px rgba(16, 24, 40, 0.08);
+}
+
+.side-actions-bar {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 4px;
+}
+
+.side-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #667085;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.side-action-btn:hover {
+  background: #ffffff;
+  color: #344054;
+}
+
+.side-action-btn.active {
+  border-color: rgba(10, 132, 255, 0.3);
+  background: rgba(10, 132, 255, 0.08);
+  color: #0a84ff;
+}
+
+.side-action-btn.danger {
+  border-color: rgba(255, 69, 58, 0.2);
+  color: #ff453a;
+}
+
+.side-action-btn.danger:hover {
+  background: rgba(255, 69, 58, 0.08);
+}
+
+.side-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.side-check.checked {
+  color: #0a84ff;
+}
+
+.check-empty {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 4px;
+}
+
+.side-item.selected {
+  background: rgba(10, 132, 255, 0.06);
+  border-color: rgba(10, 132, 255, 0.15);
 }
 
 .side-list {
