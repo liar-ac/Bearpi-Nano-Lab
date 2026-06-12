@@ -362,8 +362,7 @@ function editCancel(i: number) { if (currentSession.value) currentSession.value.
 function copy(t: string) { navigator.clipboard.writeText(t).then(() => ElMessage.success('已复制')); }
 function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
 
-function useExample(q: string, event?: MouseEvent) {
-  if (event) event.stopPropagation();
+function useExample(q: string) {
   input.value = q;
   nextTick(() => send());
 }
@@ -394,7 +393,7 @@ watch(input, () => nextTick(autoH));
     <ChatLineSquare :size="16" /> AI问答
   </el-button>
 
-  <el-dialog v-model="visible" class="ai-dialog" :show-close="false" width="min(980px, 96vw)" append-to-body :close-on-click-modal="!generating" :z-index="9999" lock-scroll destroy-on-close>
+  <el-dialog v-model="visible" class="ai-dialog" :show-close="false" width="min(980px, 96vw)" append-to-body :close-on-click-modal="false" :z-index="9999" lock-scroll destroy-on-close>
     <div class="ws">
       <!-- Sidebar -->
       <aside class="side">
@@ -458,7 +457,7 @@ watch(input, () => nextTick(autoH));
             <p class="welcome-greeting">您好，我是实验室AI助手</p>
             <p class="welcome-sub">今天想了解什么？</p>
             <div class="welcome-cards">
-              <button v-for="e in examples" :key="e" class="welcome-card" @click="useExample(e, $event)">{{ e }}</button>
+              <button v-for="e in examples" :key="e" class="welcome-card" @click="useExample(e)">{{ e }}</button>
             </div>
           </div>
 
