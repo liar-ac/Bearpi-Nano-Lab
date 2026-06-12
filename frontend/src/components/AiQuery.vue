@@ -198,6 +198,7 @@ function onKey(e: KeyboardEvent) {
 // ── Send ──────────────────────────────────────────────────────
 function send(withCtx = false) {
   const q = input.value.trim();
+  console.log('[AI] send called, q:', q, 'visible:', visible.value);
   if (!q || !currentSession.value) return;
   snapshotScroll();
   if (generating.value) {
@@ -214,8 +215,10 @@ function send(withCtx = false) {
 
 // ── AI ────────────────────────────────────────────────────────
 async function ask(question: string) {
+  console.log('[AI] ask called, visible:', visible.value);
   if (!currentSession.value) return;
   generating.value = true; aiStatus.value = 'connecting';
+  console.log('[AI] generating set to true, visible:', visible.value);
   const msg: ChatMessage = { id: nextId(), role: 'assistant', content: '', ts: Date.now(), status: 'generating' };
   snapshotScroll();
   currentSession.value.messages.push(msg); scrollDown(true);
@@ -363,8 +366,14 @@ function copy(t: string) { navigator.clipboard.writeText(t).then(() => ElMessage
 function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
 
 function useExample(q: string) {
+  console.log('[AI] useExample called with:', q);
+  console.log('[AI] visible before:', visible.value);
   input.value = q;
-  nextTick(() => send());
+  nextTick(() => {
+    console.log('[AI] calling send()');
+    send();
+    console.log('[AI] send() returned, visible:', visible.value);
+  });
 }
 function open() { visible.value = true; load(); nextTick(() => textareaRef.value?.focus()); }
 function clear() { if (currentSession.value) { currentSession.value.messages = []; queue.value = []; if (generating.value) stop(); save(); } }
@@ -380,8 +389,9 @@ function onGlobalKey(e: KeyboardEvent) {
   }
 }
 
-onBeforeUnmount(() => { if (generating.value) stop(); window.removeEventListener('keydown', onGlobalKey); });
+onBeforeUnmount(() => { console.log('[AI] onBeforeUnmount called'); if (generating.value) stop(); window.removeEventListener('keydown', onGlobalKey); });
 watch(visible, (v) => {
+  console.log('[AI] visible changed to:', v);
   if (v) { load(); nextTick(() => textareaRef.value?.focus()); window.addEventListener('keydown', onGlobalKey); }
   else { window.removeEventListener('keydown', onGlobalKey); }
 });
@@ -393,7 +403,7 @@ watch(input, () => nextTick(autoH));
     <ChatLineSquare :size="16" /> AI问答
   </el-button>
 
-  <el-dialog v-model="visible" class="ai-dialog" :show-close="false" width="min(980px, 96vw)" :close-on-click-modal="false" :z-index="9999" lock-scroll>
+  <el-dialog v-model="visible" class="ai-dialog" :show-close="false" width="min(980px, 96vw)" append-to-body :close-on-click-modal="false" :z-index="9999" lock-scroll>
     <div class="ws">
       <!-- Sidebar -->
       <aside class="side">
@@ -545,7 +555,12 @@ watch(input, () => nextTick(autoH));
 </template>
 
 <style scoped>
-:global(.ai-dialog.el-dialog) {
+/* Scoped styles for the trigger button only */
+</style>
+
+<style>
+/* Non-scoped styles for dialog content (append-to-body) */
+.ai-dialog.el-dialog {
   padding: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.52) !important;
@@ -557,13 +572,15 @@ watch(input, () => nextTick(autoH));
     0 1px 0 rgba(255, 255, 255, 0.78) inset !important;
 }
 
-:global(.ai-dialog .el-dialog__header) {
+.ai-dialog .el-dialog__header {
   display: none;
 }
 
-:global(.ai-dialog .el-dialog__body) {
+.ai-dialog .el-dialog__body {
   padding: 0 !important;
   overflow: hidden;
+  height: min(82vh, 720px);
+  min-height: 560px;
 }
 
 .ws {
