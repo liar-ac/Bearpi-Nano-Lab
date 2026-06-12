@@ -1042,9 +1042,9 @@ static int PullAndAckCommand(void)
         ReadSensorSnapshot();
         return AckCommand(commandId, "acked", "IA1 actuator override updated");
     }
-    /* No recognized actuator params - ack but report no action taken */
+    /* No recognized actuator params - report as failed */
     printf("[bearpi-lab] command %d has no recognized actuator params\r\n", commandId);
-    return AckCommand(commandId, "acked", "command received but no actuator params recognized");
+    return AckCommand(commandId, "failed", "command type not supported by this firmware");
 }
 
 static void BearPiLabTask(void)

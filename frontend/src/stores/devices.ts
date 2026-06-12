@@ -49,9 +49,10 @@ export const useDeviceStore = defineStore('devices', () => {
     error.value = null;
     try {
       const status = overrides.status ?? selectedStatus.value;
+      const needInactive = overrides.includeInactive || status === 'offline' || status === 'maintenance';
       const response = await fetchDevices({
         status: status === 'all' ? undefined : status,
-        includeInactive: overrides.includeInactive
+        includeInactive: needInactive || undefined
       });
       devices.value = response.results;
     } catch (cause) {
