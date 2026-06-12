@@ -448,6 +448,7 @@ def ensure_device_sensors(device, sensor_codes):
         "hum",
         "light",
         "motor",
+        "fill_light",
         "voltage",
         "current",
         "power",

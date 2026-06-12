@@ -40,6 +40,7 @@ let mockTimer: ReturnType<typeof setInterval> | null = null;
 let closingIntentionally = false;
 let socketOpening = false;
 let socketOpen = false;
+let reconnecting = false;
 
 export function subscribeRealtime(onMessage: (message: RealtimeMessage) => void) {
   listeners.add(onMessage);
@@ -88,6 +89,7 @@ function startMockRealtime() {
 }
 
 function connectWebSocket() {
+  if (reconnecting) return;
   const token = uni.getStorageSync('access_token');
   if (!token) {
     realtimeState.status = 'auth_failed';
@@ -145,7 +147,9 @@ function connectWebSocket() {
       if (realtimeState.attempts === 0) {
         realtimeState.status = 'reconnecting';
         realtimeState.error = 'Token过期，尝试刷新后重连...';
+        reconnecting = true;
         refreshAccessToken().then((newToken) => {
+          reconnecting = false;
           const hasSubscribers = listeners.size > 0 || alarmListeners.size > 0;
           if (!hasSubscribers) {
             realtimeState.status = 'idle';

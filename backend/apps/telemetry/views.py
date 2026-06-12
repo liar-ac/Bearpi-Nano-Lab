@@ -325,10 +325,11 @@ def record_threshold_alarm(sensor, value, ts):
 
 
 def close_resolved_alarms(sensor):
+    """自动关闭已恢复的NEW告警。ACKNOWLEDGED告警保留操作员确认记录，需显式关闭。"""
     Alarm.objects.filter(
         device=sensor.device,
         sensor=sensor,
-        status__in=[Alarm.Status.NEW, Alarm.Status.ACKNOWLEDGED],
+        status=Alarm.Status.NEW,
     ).update(status=Alarm.Status.CLOSED)
 
 
