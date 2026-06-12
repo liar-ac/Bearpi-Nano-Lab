@@ -466,7 +466,8 @@ def ensure_device_sensors(device, sensor_codes):
     })
     for code in sorted(codes):
         if code in IA1_SENSOR_TEMPLATES:
-            Sensor.objects.update_or_create(device=device, code=code, defaults=IA1_SENSOR_TEMPLATES[code])
+            # 使用 get_or_create 而非 update_or_create，避免每次遥测ingest重置用户设置的阈值
+            Sensor.objects.get_or_create(device=device, code=code, defaults=IA1_SENSOR_TEMPLATES[code])
             continue
 
         Sensor.objects.get_or_create(
