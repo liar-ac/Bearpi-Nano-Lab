@@ -75,6 +75,13 @@ IA1_SENSOR_TEMPLATES = {
         "min_value": 0,
         "max_value": 1,
     },
+    "fill_light": {
+        "name": "补光灯",
+        "unit": "",
+        "description": "IA1 补光灯状态，0=关闭，1=开启",
+        "min_value": 0,
+        "max_value": 1,
+    },
     "voltage": {
         "name": "工作电压",
         "unit": "V",

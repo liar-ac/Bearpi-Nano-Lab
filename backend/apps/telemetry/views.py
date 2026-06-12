@@ -30,7 +30,7 @@ INTERVALS = {
 }
 
 MAX_HISTORY_RANGE = timedelta(days=31)
-EXECUTOR_SENSOR_CODES = frozenset({"motor", "fan", "ventilation", "lamp", "led", "light_actuator"})
+EXECUTOR_SENSOR_CODES = frozenset({"motor", "fan", "ventilation", "lamp", "led", "fill_light"})
 
 
 class SensorHistoryView(APIView):
