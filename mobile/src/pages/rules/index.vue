@@ -87,6 +87,10 @@ async function save(rule: RuleConfig) {
   const draft = drafts[rule.id];
   const min = parseOptionalNumber(draft.min);
   const max = parseOptionalNumber(draft.max);
+  if (Number.isNaN(min) || Number.isNaN(max)) {
+    uni.showToast({ title: '请输入有效数字', icon: 'none' });
+    return;
+  }
   if (min !== null && max !== null && min >= max) {
     uni.showToast({ title: '上限必须大于下限', icon: 'none' });
     return;
@@ -125,7 +129,7 @@ function parseOptionalNumber(value: string) {
   const text = value.trim();
   if (!text) return null;
   const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) ? parsed : NaN;
 }
 
 function ruleRange(rule: RuleConfig) {
@@ -204,10 +208,10 @@ function ruleRange(rule: RuleConfig) {
         </view>
         <view class="edit-row">
           <view class="field">
-            <wd-input v-model="drafts[rule.id].min" label="下限" type="digit" :disabled="!auth.canCommand" placeholder="无" />
+            <wd-input v-model="drafts[rule.id].min" label="下限" type="text" :disabled="!auth.canCommand" placeholder="无" />
           </view>
           <view class="field">
-            <wd-input v-model="drafts[rule.id].max" label="上限" type="digit" :disabled="!auth.canCommand" placeholder="无" />
+            <wd-input v-model="drafts[rule.id].max" label="上限" type="text" :disabled="!auth.canCommand" placeholder="无" />
           </view>
           <wd-button size="small" type="primary" :loading="savingId === rule.id" :disabled="!auth.canCommand" @click="save(rule)">
             保存

@@ -11,6 +11,7 @@ const tasks = ref<BulkTask[]>([]);
 const devices = ref<Device[]>([]);
 const loading = ref(false);
 const creating = ref('');
+const retryingId = ref('');
 const error = ref('');
 const target = ref<'online' | 'all'>('online');
 
@@ -115,6 +116,7 @@ async function createTask(actuator: Exclude<BulkTaskActuator, 'unknown'>, mode: 
 }
 
 async function retry(task: BulkTask) {
+  if (retryingId.value) return;
   if (!auth.canCommand) {
     uni.showToast({ title: '当前角色没有重试权限', icon: 'none' });
     return;
@@ -125,12 +127,15 @@ async function retry(task: BulkTask) {
   }
   const confirmed = await showConfirm(`确认重试${task.failedDevices.length}块失败板卡？`, '任务重试', '重试');
   if (!confirmed) return;
+  retryingId.value = task.batchId;
   try {
     await retryBulkTask(task.batchId);
     uni.showToast({ title: '重试任务已创建', icon: 'success' });
     await load();
   } catch (cause) {
     uni.showToast({ title: cause instanceof Error ? cause.message : '重试失败', icon: 'none' });
+  } finally {
+    retryingId.value = '';
   }
 }
 
@@ -272,7 +277,8 @@ function statusType(status: BulkTaskStatus) {
           v-if="task.failedDevices.length"
           size="small"
           type="primary"
-          :disabled="!auth.canCommand"
+          :loading="retryingId === task.batchId"
+          :disabled="!auth.canCommand || Boolean(retryingId)"
           @click="retry(task)"
         >
           重试失败板卡

@@ -18,6 +18,7 @@ const statusFilter = ref<AlarmStatus | ''>('');
 const levelFilter = ref<AlarmLevel | ''>('');
 let unsubscribeAlarm: (() => void) | null = null;
 let refreshTimer: number | null = null;
+let loadSeq = 0;
 
 const statusOptions: Array<{ label: string; value: AlarmStatus | '' }> = [
   { label: '未关闭', value: '' },
@@ -87,17 +88,21 @@ function closeAiDialog() {
 }
 
 async function load() {
+  const seq = ++loadSeq;
   loading.value = true;
   error.value = '';
   try {
-    alarms.value = await fetchAlarms({
+    const data = await fetchAlarms({
       status: statusFilter.value || undefined,
       level: levelFilter.value || undefined
     });
+    if (seq !== loadSeq) return;
+    alarms.value = data;
   } catch (cause) {
+    if (seq !== loadSeq) return;
     error.value = cause instanceof Error ? cause.message : '告警加载失败';
   } finally {
-    loading.value = false;
+    if (seq === loadSeq) loading.value = false;
   }
 }
 

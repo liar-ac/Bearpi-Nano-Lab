@@ -1,6 +1,8 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -61,6 +63,10 @@ class RegisterSerializer(serializers.Serializer):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("账号不能为空")
+        try:
+            UnicodeUsernameValidator()(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages[0] if exc.messages else "账号格式不合法")
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("该账号已存在")
         return value
@@ -73,7 +79,7 @@ class RegisterSerializer(serializers.Serializer):
         password = validated_data["password"]
         name = validated_data.get("name", "").strip()
         try:
-            validate_password(password)
+            validate_password(password, user=User(username=username, first_name=name))
         except Exception as exc:
             error_messages = exc.messages if hasattr(exc, 'messages') else [str(exc)]
             raise serializers.ValidationError({"password": error_messages})

@@ -11,6 +11,7 @@ const logs = ref<AuditLog[]>([]);
 const loading = ref(false);
 const error = ref('');
 const actionFilter = ref('');
+let seq = 0;
 
 const actionOptions = [
   { label: '全部', value: '' },
@@ -35,6 +36,7 @@ const actionLabel: Record<string, string> = {
 
 const stats = computed(() => ({
   total: logs.value.length,
+  security: logs.value.filter((item) => ['login', 'register', 'role_update'].includes(item.action)).length,
   command: logs.value.filter((item) => item.action === 'command_create' || item.action === 'command_ack').length,
   rule: logs.value.filter((item) => item.action === 'rule_update').length
 }));
@@ -58,14 +60,18 @@ onPullDownRefresh(async () => {
 });
 
 async function load() {
+  const my = ++seq;
   loading.value = true;
   error.value = '';
   try {
-    logs.value = await fetchAuditLogs({ action: actionFilter.value || undefined });
+    const next = await fetchAuditLogs({ action: actionFilter.value || undefined });
+    if (my !== seq) return;
+    logs.value = next;
   } catch (cause) {
+    if (my !== seq) return;
     error.value = cause instanceof Error ? cause.message : '审计日志加载失败';
   } finally {
-    loading.value = false;
+    if (my === seq) loading.value = false;
   }
 }
 
@@ -97,6 +103,10 @@ function metadataText(log: AuditLog) {
       <view class="metric-card">
         <text>当前列表</text>
         <text>{{ stats.total }}</text>
+      </view>
+      <view class="metric-card">
+        <text>安全事件</text>
+        <text>{{ stats.security }}</text>
       </view>
       <view class="metric-card">
         <text>指令链路</text>
@@ -199,7 +209,7 @@ function metadataText(log: AuditLog) {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12rpx;
   margin: 18rpx 0;
 }

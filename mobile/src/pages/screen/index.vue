@@ -162,7 +162,12 @@ function openDevice(device: Device) {
 }
 
 function goBack() {
-  uni.navigateBack();
+  const pages = getCurrentPages();
+  if (pages.length > 1) {
+    uni.navigateBack();
+  } else {
+    uni.reLaunch({ url: '/pages/dashboard/index' });
+  }
 }
 </script>
 

@@ -14,6 +14,7 @@ const password = ref('');
 const loading = ref(false);
 
 async function submit() {
+  if (loading.value) return;
   if (!username.value.trim() || !password.value) {
     ElMessage.warning('请填写账号和密码');
     return;
@@ -76,7 +77,6 @@ async function submit() {
             placeholder="admin123"
             show-password
             type="password"
-            @keyup.enter="submit"
           />
         </el-form-item>
         <el-button class="full-button" type="primary" native-type="submit" :loading="loading">

@@ -17,6 +17,7 @@ const selectedSlotNo = ref(1);
 let unsubscribe: (() => void) | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 let alive = true;
+let visible = false;
 
 const filters: Array<{ label: string; value: TopologyFilter }> = [
   { label: '全部', value: 'all' },
@@ -72,8 +73,9 @@ const selectedSlot = computed(
 );
 
 onShow(async () => {
+  visible = true;
   await store.loadDevices({ status: 'all', includeInactive: true });
-  if (!alive) return;
+  if (!alive || !visible) return;
   if (!unsubscribe) unsubscribe = subscribeRealtime(store.applyRealtime);
   if (!refreshTimer) {
     refreshTimer = setInterval(() => {
@@ -83,11 +85,13 @@ onShow(async () => {
 });
 
 onHide(() => {
+  visible = false;
   teardown();
 });
 
 onUnload(() => {
   alive = false;
+  visible = false;
   teardown();
 });
 

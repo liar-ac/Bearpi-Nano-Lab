@@ -15,6 +15,22 @@ const confirmPassword = ref('');
 const loading = ref(false);
 
 async function submit() {
+  if (!username.value.trim() || !password.value) {
+    ElMessage.warning('请填写账号和密码');
+    return;
+  }
+  if (username.value.trim().length < 3) {
+    ElMessage.warning('账号至少需要3位');
+    return;
+  }
+  if (password.value.length < 8) {
+    ElMessage.warning('密码至少需要8位');
+    return;
+  }
+  if (/^\d+$/.test(password.value)) {
+    ElMessage.warning('密码不能全为数字');
+    return;
+  }
   if (password.value !== confirmPassword.value) {
     ElMessage.warning('两次输入的密码不一致');
     return;
@@ -56,7 +72,7 @@ async function submit() {
           <el-input v-model.trim="name" autocomplete="name" placeholder="可选，用于页面显示" />
         </el-form-item>
         <el-form-item label="密码">
-          <el-input v-model="password" autocomplete="new-password" type="password" show-password placeholder="至少 6 位" />
+          <el-input v-model="password" autocomplete="new-password" type="password" show-password placeholder="至少 8 位，不能全为数字" />
         </el-form-item>
         <el-form-item label="确认密码">
           <el-input v-model="confirmPassword" autocomplete="new-password" type="password" show-password placeholder="再次输入密码" />

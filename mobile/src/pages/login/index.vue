@@ -15,6 +15,7 @@ onLoad(() => {
 });
 
 async function submit() {
+  if (loading.value) return;
   if (!username.value.trim() || !password.value) {
     uni.showToast({ title: '请填写账号和密码', icon: 'none' });
     return;

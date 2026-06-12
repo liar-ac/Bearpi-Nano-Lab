@@ -93,7 +93,20 @@ export async function request<T>(path: string, options: RequestInit = {}, signal
             if (Array.isArray(body.non_field_errors)) {
               candidates.push(body.non_field_errors.join(', '));
             }
-            message = candidates.find((v) => typeof v === 'string' && v.length > 0) ?? message;
+            let found = candidates.find((v) => typeof v === 'string' && v.length > 0);
+            if (!found) {
+              for (const value of Object.values(body)) {
+                if (typeof value === 'string' && value.length > 0) {
+                  found = value;
+                  break;
+                }
+                if (Array.isArray(value) && typeof value[0] === 'string') {
+                  found = value[0];
+                  break;
+                }
+              }
+            }
+            message = found ?? message;
           } else if (typeof body === 'string' && body.length > 0) {
             message = body.slice(0, 500);
           }

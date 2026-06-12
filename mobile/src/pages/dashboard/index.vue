@@ -7,7 +7,7 @@ import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/rea
 import { useAuthStore } from '@/stores/auth';
 import { useDeviceStore } from '@/stores/devices';
 import type { Alarm, Device, DeviceStatus } from '@/types/domain';
-import { alarmLevelLabel, relativeTime, statusLabel } from '@/utils/format';
+import { alarmLevelLabel, formatValue, relativeTime, statusLabel } from '@/utils/format';
 
 const store = useDeviceStore();
 const auth = useAuthStore();
@@ -29,8 +29,14 @@ const realtimeTone = computed(() => {
 
 const priorityDevices = computed(() =>
   store.devices
-    .filter((device) => device.status !== 'online' || isStale(device))
-    .slice(0, 4)
+    .map((device) => ({
+      device,
+      score: riskScore(device),
+      reasons: riskReasons(device)
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
 );
 
 const recentAlarms = computed(() => alarms.value.slice(0, 3));
@@ -113,6 +119,10 @@ function openPower() {
   uni.navigateTo({ url: '/pages/power/index' });
 }
 
+function openScreen() {
+  uni.navigateTo({ url: '/pages/screen/index' });
+}
+
 function logout() {
   auth.logout();
   uni.reLaunch({ url: '/pages/login/index' });
@@ -126,6 +136,41 @@ function isStale(device: Device) {
   if (!device.lastSeen || device.status === 'offline') return false;
   const diff = Date.now() - new Date(device.lastSeen).getTime();
   return Number.isFinite(diff) && diff > 2 * 60_000;
+}
+
+function riskScore(device: Device) {
+  let score = 0;
+  if (device.status === 'offline') score += 100;
+  if (device.status === 'warning') score += 80;
+  if (device.status === 'maintenance') score += 35;
+  if (isStale(device)) score += 20;
+  score += thresholdBreaches(device).length * 18;
+  return score;
+}
+
+function riskReasons(device: Device) {
+  const reasons: string[] = [];
+  if (device.status !== 'online') reasons.push(statusLabel[device.status]);
+  if (device.abnormalReason) reasons.push(device.abnormalReason);
+  if (isStale(device)) reasons.push(`上报延迟 ${relativeTime(device.lastSeen)}`);
+  reasons.push(...thresholdBreaches(device));
+  return Array.from(new Set(reasons)).slice(0, 3);
+}
+
+function thresholdBreaches(device: Device) {
+  return device.sensors
+    .filter((sensor) => typeof sensor.latest?.value === 'number')
+    .flatMap((sensor) => {
+      const value = sensor.latest?.value;
+      if (typeof value !== 'number') return [];
+      if (typeof sensor.max === 'number' && value > sensor.max) {
+        return [`${sensor.name} ${formatValue(value, sensor.unit)}`];
+      }
+      if (typeof sensor.min === 'number' && value < sensor.min) {
+        return [`${sensor.name} ${formatValue(value, sensor.unit)}`];
+      }
+      return [];
+    });
 }
 
 async function runBulkControl(actuator: 'motor' | 'light', mode: 'auto' | 'on' | 'off') {
@@ -143,7 +188,8 @@ async function runBulkControl(actuator: 'motor' | 'light', mode: 'auto' | 'on' |
   if (!confirmed) return;
   try {
     const result = await sendBulkCommand({ target: 'online', actuator, mode });
-    uni.showToast({ title: `已创建${result.count}条同步指令`, icon: 'success' });
+    const t = result.executeAt ? new Date(result.executeAt).toLocaleTimeString() : '';
+    uni.showToast({ title: `已创建${result.count}条同步指令${t ? `，预计${t}执行` : ''}`, icon: 'success' });
   } catch (cause) {
     uni.showToast({ title: cause instanceof Error ? cause.message : '批量控制失败', icon: 'none' });
   }
@@ -174,6 +220,7 @@ function showConfirm(content: string) {
       <view class="quick-actions">
         <AiQuery />
         <wd-button size="small" plain @click="openTopology">槽位拓扑</wd-button>
+        <wd-button size="small" plain @click="openScreen">实时大屏</wd-button>
         <wd-button size="small" plain @click="openPower">功耗监控</wd-button>
         <wd-button size="small" plain @click="openRules">规则配置</wd-button>
         <wd-button size="small" plain @click="openTasks">任务中心</wd-button>
@@ -245,12 +292,13 @@ function showConfirm(content: string) {
     <view v-if="!store.loading && !store.devices.length" class="empty-state">当前没有接入板卡</view>
     <view v-else-if="!store.loading && !priorityDevices.length" class="empty-state">全部设备运行稳定，暂无风险</view>
     <view v-else class="device-list">
-      <view v-for="device in priorityDevices" :key="device.id" class="device-row" @click="openDevice(device)">
+      <view v-for="item in priorityDevices" :key="item.device.id" class="device-row" @click="openDevice(item.device)">
         <view>
-          <text class="row-title">{{ device.sn }}</text>
-          <text class="row-meta">槽位 {{ device.slotNo }} / {{ device.location }} / {{ relativeTime(device.lastSeen) }}</text>
+          <text class="row-title">{{ item.device.sn }}</text>
+          <text class="row-meta">槽位 {{ item.device.slotNo }} / {{ item.device.location }} / {{ relativeTime(item.device.lastSeen) }}</text>
+          <text class="row-meta">风险{{ item.score }}分：{{ item.reasons.join(' / ') }}</text>
         </view>
-        <wd-tag :type="statusType(device.status)">{{ statusLabel[device.status] }}</wd-tag>
+        <wd-tag :type="statusType(item.device.status)">{{ statusLabel[item.device.status] }}</wd-tag>
       </view>
     </view>
 

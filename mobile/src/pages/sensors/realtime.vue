@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onLoad, onUnload } from '@dcloudio/uni-app';
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { fetchDevice, simulateRealtime } from '@/api/lab';
 import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
 import type { Device, Point, RealtimeMessage, Sensor } from '@/types/domain';
@@ -19,8 +19,8 @@ const lastAppendAt = ref(0);
 let unsubscribe: (() => void) | null = null;
 let alive = true;
 
-const maxValue = computed(() => Math.max(...points.value.map((point) => Math.abs(point.value)), 1));
 const chartPoints = computed(() => points.value.slice(-36));
+const maxValue = computed(() => Math.max(...chartPoints.value.map((point) => Math.abs(point.value)), 1));
 
 onLoad(async (query) => {
   const parsedDeviceId = Number(query?.deviceId) || 0;
@@ -29,7 +29,20 @@ onLoad(async (query) => {
   sensorId.value = Number.isFinite(parsedSensorId) ? parsedSensorId : 0;
   await load();
   if (!alive) return;
-  unsubscribe = subscribeRealtime(appendRealtimePoint);
+  if (deviceId.value && sensorId.value && !unsubscribe) {
+    unsubscribe = subscribeRealtime(appendRealtimePoint);
+  }
+});
+
+onShow(() => {
+  if (alive && deviceId.value && sensorId.value && !unsubscribe) {
+    unsubscribe = subscribeRealtime(appendRealtimePoint);
+  }
+});
+
+onHide(() => {
+  unsubscribe?.();
+  unsubscribe = null;
 });
 
 onUnload(() => {

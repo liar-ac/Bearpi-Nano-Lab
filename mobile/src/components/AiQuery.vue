@@ -86,6 +86,14 @@ const statusText = computed(() => {
 // ── Storage ─────────────────────────────────────────────────
 function load() {
   try { sessions.value = JSON.parse(uni.getStorageSync(STORAGE_KEY) || '[]'); } catch { sessions.value = []; }
+  sessions.value.forEach((s) => s.messages.forEach((m) => {
+    if (m.status === 'generating' || m.status === 'queued') {
+      m.status = 'error';
+      if (!m.content) m.content = '会话中断';
+    }
+    if (m.commandStatus === 'executing' || m.commandStatus === 'confirming') m.commandStatus = 'error';
+    if (m.editing) m.editing = false;
+  }));
   if (!sessions.value.length) create();
   if (!currentSessionId.value) currentSessionId.value = sessions.value[0].id;
 }
@@ -170,14 +178,10 @@ async function removeSelected() {
 }
 
 // ── History / Context ───────────────────────────────────────
-function buildHistory() {
-  return msgs.value.filter((m) => m.status === 'done').map((m) => ({ role: m.role, content: m.content }));
-}
-
-function ctxPrefix() {
-  const r = msgs.value.filter((m) => m.status === 'done').slice(-6)
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content.slice(0, 200)}`).join('\n');
-  return r ? `基于当前对话上下文:\n${r}\n\n请回答:\n` : '';
+function buildHistory(question: string) {
+  const h = msgs.value.filter((m) => m.status === 'done').map((m) => ({ role: m.role, content: m.content }));
+  if (h.length && h[h.length - 1].role === 'user' && h[h.length - 1].content === question) h.pop();
+  return h;
 }
 
 // ── Scroll ──────────────────────────────────────────────────
@@ -238,14 +242,13 @@ function send() {
     scrollDown(true);
     return;
   }
-  const full = (msgs.value.filter((m) => m.status === 'done').length > 0 ? ctxPrefix() : '') + q;
   const idx = currentSession.value.messages.length;
   currentSession.value.messages.push({ id: nextId(), role: 'user', content: q, ts: Date.now(), status: 'done' });
   autoTitle(currentSession.value);
   save();
   input.value = '';
   scrollDown(true);
-  if (looksCmd(q)) void detectCmd(idx); else ask(full);
+  if (looksCmd(q)) void detectCmd(idx); else ask(q);
 }
 
 // ── AI ──────────────────────────────────────────────────────
@@ -261,7 +264,7 @@ async function ask(question: string) {
   abortController.value = ctrl;
   try {
     aiStatus.value = 'thinking';
-    const r = await sendAiQuery(question, buildHistory(), ctrl.signal) as { reply: string; data_source?: string; diagnostic?: Record<string, unknown> };
+    const r = await sendAiQuery(question, buildHistory(question), ctrl.signal) as { reply: string; data_source?: string; diagnostic?: Record<string, unknown> };
     if (ctrl.signal.aborted) return;
     aiStatus.value = 'replying';
     msg.content = r.reply;
@@ -292,7 +295,7 @@ async function ask(question: string) {
 }
 
 // ── Command detection ───────────────────────────────────────
-const cmdKw = ['打开', '关闭', '关掉', '开', '关', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
+const cmdKw = ['打开', '关闭', '关掉', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
 const bulkKw = ['所有', '全部', '全部的', '所有的', '每个', '全都'];
 const actuatorKw = ['电机', '灯', '补光灯', '风扇', 'motor', 'light'];
 
@@ -348,6 +351,7 @@ async function detectCmd(idx: number) {
         cmd.content = r.explanation || '未识别为设备控制指令';
         cmd.commandStatus = 'rejected';
         cmd.command = undefined;
+        ask(user.content);
       }
     }
   } catch {
@@ -415,7 +419,9 @@ function stop() {
     last.content = (last.content || '') + '\n\n*[已停止]*';
     last.status = 'done';
   }
+  currentSession.value.messages.forEach((m) => { if (m.status === 'queued') m.status = 'done'; });
   queue.value = [];
+  save();
 }
 
 function regen(idx: number) {
@@ -435,6 +441,7 @@ function regen(idx: number) {
 
 function editStart(i: number) {
   if (!currentSession.value) return;
+  currentSession.value.messages.forEach((m) => { m.editing = false; });
   currentSession.value.messages[i].editing = true;
   editValue.value = currentSession.value.messages[i].content;
 }
@@ -535,7 +542,7 @@ watch(aiStatus, (status) => {
 
 watch(visible, (v) => {
   if (v) {
-    load();
+    if (!sessions.value.length) load();
     nextTick(() => measureScroll());
   }
 });

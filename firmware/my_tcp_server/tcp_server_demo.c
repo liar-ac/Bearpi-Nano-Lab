@@ -98,15 +98,25 @@ static void TCPServerTask(void)
 
 		while (1)
 		{
-			if ((ret = recv(new_fd, recvbuf, sizeof(recvbuf), 0)) == -1)
+			if ((ret = recv(new_fd, recvbuf, sizeof(recvbuf) - 1, 0)) <= 0)
 			{
-				printf("recv error \r\n");
+				if (ret == 0)
+				{
+					printf("client closed\r\n");
+				}
+				else
+				{
+					printf("recv error \r\n");
+				}
+				break;
 			}
+			recvbuf[ret] = '\0';
 			printf("recv :%s\r\n", recvbuf);
 			sleep(2);
 			if ((ret = send(new_fd, buf, strlen(buf) + 1, 0)) == -1)
 			{
 				perror("send : ");
+				break;
 			}
 
 			sleep(2);

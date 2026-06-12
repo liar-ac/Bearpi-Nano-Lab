@@ -3,13 +3,22 @@
 """
 from datetime import timedelta
 
+from django.conf import settings
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIRequestFactory
 
 from apps.cloud.models import CloudDeviceStatus
 from apps.devices.models import Device, Sensor
-from apps.telemetry.views import EXECUTOR_SENSOR_CODES, MAX_HISTORY_RANGE, parse_required_datetime, record_threshold_alarm
+from apps.telemetry.models import RawPoint
+from apps.telemetry.views import (
+    EXECUTOR_SENSOR_CODES,
+    MAX_HISTORY_RANGE,
+    TelemetryIngestView,
+    parse_required_datetime,
+    record_threshold_alarm,
+)
 from apps.alarms.models import Alarm
 
 
@@ -63,3 +72,59 @@ class ThresholdAlarmExecutorTests(TestCase):
         alarm = record_threshold_alarm(sensor, value=40, ts=timezone.now())
         self.assertIsNotNone(alarm)
         self.assertEqual(alarm.level, Alarm.Level.WARNING)
+
+
+class TelemetryIngestValidationTests(TestCase):
+    """覆盖修复：非有限数值、非字典body、超长sensor_code在ingest入口被拒绝"""
+
+    def _post(self, body):
+        request = APIRequestFactory().post(
+            "/api/v1/ingest/telemetry",
+            body,
+            format="json",
+            HTTP_X_DEVICE_TOKEN=settings.DEVICE_INGEST_TOKEN,
+        )
+        return TelemetryIngestView.as_view()(request)
+
+    def test_nan_value_rejected_and_nothing_persisted(self):
+        response = self._post({"sn": "BEARPI-NANO-A001", "sensor_code": "temp", "value": "NaN"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(RawPoint.objects.count(), 0)
+        self.assertEqual(Device.objects.count(), 0)
+
+    def test_infinite_value_rejected_and_nothing_persisted(self):
+        response = self._post({"sn": "BEARPI-NANO-A001", "sensor_code": "temp", "value": "Infinity"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(RawPoint.objects.count(), 0)
+
+    def test_non_dict_body_returns_400(self):
+        response = self._post([{"sensor_code": "temp", "value": 1.0}])
+        self.assertEqual(response.status_code, 400)
+
+    def test_sensor_code_longer_than_32_chars_rejected(self):
+        long_code = "x" * 33
+        response = self._post({"sn": "BEARPI-NANO-A001", "metrics": {long_code: 1.0}})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Sensor.objects.filter(code=long_code).exists())
+
+
+class AcknowledgedAlarmAutoCloseTests(TestCase):
+    """覆盖修复：数值恢复后ACKNOWLEDGED告警也随NEW告警一起自动关闭"""
+
+    def test_acknowledged_alarm_closed_when_value_recovers(self):
+        device = _make_device(3)
+        sensor = Sensor.objects.create(
+            device=device, code="temp", name="温度", unit="℃", min_value=18, max_value=32
+        )
+        alarm = Alarm.objects.create(
+            device=device,
+            sensor=sensor,
+            ts=timezone.now(),
+            level=Alarm.Level.WARNING,
+            message="温度高于阈值",
+            status=Alarm.Status.ACKNOWLEDGED,
+        )
+        result = record_threshold_alarm(sensor, value=25, ts=timezone.now())
+        self.assertIsNone(result)
+        alarm.refresh_from_db()
+        self.assertEqual(alarm.status, Alarm.Status.CLOSED)

@@ -17,12 +17,21 @@ onLoad(() => {
 });
 
 async function submit() {
+  if (loading.value) return;
   if (!username.value.trim() || !password.value) {
     uni.showToast({ title: '请填写账号和密码', icon: 'none' });
     return;
   }
-  if (password.value.length < 6) {
-    uni.showToast({ title: '密码至少需要 6 位', icon: 'none' });
+  if (username.value.trim().length < 3) {
+    uni.showToast({ title: '账号至少需要3位', icon: 'none' });
+    return;
+  }
+  if (password.value.length < 8) {
+    uni.showToast({ title: '密码至少需要8位', icon: 'none' });
+    return;
+  }
+  if (/^\d+$/.test(password.value)) {
+    uni.showToast({ title: '密码不能全为数字', icon: 'none' });
     return;
   }
   if (password.value !== confirmPassword.value) {
@@ -60,7 +69,7 @@ function goLogin() {
       </view>
       <wd-input v-model="username" label="账号" placeholder="至少 3 位，登录时使用" clearable />
       <wd-input v-model="name" label="姓名" placeholder="可选，用于页面显示" clearable />
-      <wd-input v-model="password" label="密码" placeholder="至少 6 位" show-password clearable />
+      <wd-input v-model="password" label="密码" placeholder="至少8位，不能全为数字" show-password clearable />
       <wd-input v-model="confirmPassword" label="确认密码" placeholder="再次输入密码" show-password clearable @confirm="submit" />
       <wd-button block type="primary" size="large" :loading="loading" @click="submit">创建只读账号</wd-button>
       <view class="note">

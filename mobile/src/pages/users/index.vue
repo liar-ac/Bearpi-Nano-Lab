@@ -112,7 +112,10 @@ function roleButtonType(role: UserRole) {
             <text class="name">{{ user.name || user.username }}</text>
             <text class="meta">{{ user.username }} / {{ formatDateTime(user.createdAt) }}</text>
           </view>
-          <wd-tag :type="roleType(user.role)">{{ roleLabel[user.role] }}</wd-tag>
+          <view class="tag-row">
+            <wd-tag :type="roleType(user.role)">{{ roleLabel[user.role] }}</wd-tag>
+            <wd-tag :type="user.isActive ? 'success' : 'default'">{{ user.isActive ? '启用' : '禁用' }}</wd-tag>
+          </view>
         </view>
         <view class="mode-row">
           <wd-button
@@ -211,6 +214,12 @@ function roleButtonType(role: UserRole) {
   justify-content: space-between;
   gap: 18rpx;
   align-items: center;
+}
+
+.tag-row {
+  display: flex;
+  gap: 8rpx;
+  flex-shrink: 0;
 }
 
 .name {

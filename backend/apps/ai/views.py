@@ -73,7 +73,7 @@ def build_alarm_context(context):
     ]
     if recent_sensors:
         parts.append("\n## 传感器最新数据")
-        for s in recent_sensors:
+        for s in recent_sensors[:20]:
             parts.append(f"- {s.get('name', '?')}: {s.get('value', '?')}{s.get('unit', '')} (阈值: {s.get('min', '无')}~{s.get('max', '无')})")
     return "\n".join(parts)
 
@@ -108,11 +108,11 @@ def build_rule_suggestion_context(context):
     rules = context.get("rules", [])
     device_stats = context.get("device_stats", [])
     parts = ["## 当前规则配置"]
-    for r in rules:
+    for r in rules[:50]:
         parts.append(f"- {r.get('deviceName', '?')}/{r.get('name', '?')} ({r.get('code', '?')}): min={r.get('min', '无')} max={r.get('max', '无')} 单位={r.get('unit', '')}")
     if device_stats:
         parts.append("\n## 传感器历史统计(最近7天)")
-        for ds in device_stats:
+        for ds in device_stats[:50]:
             parts.append(f"- {ds.get('deviceName', '?')}/{ds.get('sensorName', '?')} ({ds.get('code', '?')}): 均值={ds.get('avg', '?')} 最小={ds.get('min', '?')} 最大={ds.get('max', '?')} 越界次数={ds.get('breachCount', 0)}")
     return "\n".join(parts)
 
@@ -532,13 +532,19 @@ class AiChatView(APIView):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter"):
             raise PermissionDenied("仅管理员和实验员可使用AI分析功能")
+        if not isinstance(request.data, dict):
+            raise ValidationError({"detail": "请求体必须是JSON对象"})
         feature = request.data.get("feature")
         if feature not in CONTEXT_BUILDERS:
             raise ValidationError({"feature": f"不支持的AI功能: {feature}"})
         context = request.data.get("context")
         if not isinstance(context, dict) or not context:
             raise ValidationError({"context": "缺少分析上下文"})
-        result = call_ai_api(SYSTEM_PROMPTS[feature], CONTEXT_BUILDERS[feature](context))
+        try:
+            user_message = CONTEXT_BUILDERS[feature](context)
+        except (AttributeError, TypeError):
+            raise ValidationError({"context": "上下文格式错误"})
+        result = call_ai_api(SYSTEM_PROMPTS[feature], user_message)
         if isinstance(result, Response) and result.status_code != 200:
             return result
         result.data["feature"] = feature
@@ -552,19 +558,21 @@ class AiQueryView(APIView):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter", "viewer"):
             raise PermissionDenied("登录后即可使用AI问答")
-        question = request.data.get("question", "").strip()
-        if not question:
+        if not isinstance(request.data, dict):
             raise ValidationError({"question": "请输入问题"})
+        question = request.data.get("question")
+        if not isinstance(question, str) or not question.strip():
+            raise ValidationError({"question": "请输入问题"})
+        question = question.strip()
         if len(question) > 500:
             raise ValidationError({"question": "问题长度不能超过500字"})
         history = request.data.get("history", [])
         if not isinstance(history, list):
             history = []
         # Limit history to last 20 turns to avoid token overflow
-        history = history[-40:]
+        history = [item for item in history[-40:] if isinstance(item, dict) and isinstance(item.get("content"), str)]
         for item in history:
-            if isinstance(item, dict) and isinstance(item.get("content"), str):
-                item["content"] = item["content"][:2000]
+            item["content"] = item["content"][:2000]
         lab_context, _data_source = gather_lab_context()
         user_message = f"## 用户问题\n{question}"
         if lab_context:
@@ -585,7 +593,7 @@ def _regex_parse_command(text):
     import re as _re
     text_lower = text.lower()
     # Extract device identifier
-    sn_match = _re.search(r'[aA]\d{3}', text)
+    sn_match = _re.search(r'[aA]\d{3}(?!\d)', text)
     slot_match = _re.search(r'槽位\s*(\d+)', text)
     if not sn_match and not slot_match:
         return None
@@ -599,9 +607,9 @@ def _regex_parse_command(text):
         return None
     # Determine mode
     mode = "unknown"
-    if any(kw in text_lower for kw in ['打开', '开', '开启', 'on']):
+    if any(kw in text_lower for kw in ['打开', '开启']) or _re.search(r'\bon\b', text_lower):
         mode = "on"
-    elif any(kw in text_lower for kw in ['关闭', '关', '关掉', 'off']):
+    elif any(kw in text_lower for kw in ['关闭', '关掉']) or _re.search(r'\boff\b', text_lower):
         mode = "off"
     elif any(kw in text_lower for kw in ['自动', 'auto']):
         mode = "auto"
@@ -660,9 +668,12 @@ class AiCommandParseView(APIView):
         role = resolve_role(request.user)
         if role not in ("admin", "experimenter"):
             raise PermissionDenied("仅管理员和实验员可使用设备控制功能")
-        text = request.data.get("text", "").strip()
-        if not text:
+        if not isinstance(request.data, dict):
             raise ValidationError({"text": "请输入指令文本"})
+        text = request.data.get("text")
+        if not isinstance(text, str) or not text.strip():
+            raise ValidationError({"text": "请输入指令文本"})
+        text = text.strip()
         if len(text) > 200:
             raise ValidationError({"text": "指令长度不能超过200字"})
 
@@ -693,13 +704,17 @@ class AiCommandParseView(APIView):
 
         # Validate device exists if detected
         if parsed.get("detected") and parsed.get("device_sn"):
+            if not isinstance(parsed["device_sn"], str):
+                parsed["detected"] = False
+                parsed["explanation"] = "未识别到有效设备"
+                return Response(parsed)
             from apps.devices.models import Device
             sn = parsed["device_sn"].upper()
             # Normalize SN
             if not sn.startswith("BEARPI-NANO-"):
                 if sn.startswith("A") and len(sn) <= 4:
                     sn = f"BEARPI-NANO-{sn}"
-            device = Device.objects.filter(sn__icontains=sn).first()
+            device = Device.objects.filter(sn__iexact=sn).first()
             if device:
                 parsed["device_id"] = device.id
                 parsed["device_sn"] = device.sn

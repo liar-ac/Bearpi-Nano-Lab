@@ -25,6 +25,7 @@ const featureTitles: Record<AiFeature, string> = {
 const displayTitle = computed(() => props.title ?? featureTitles[props.feature] ?? 'AI分析');
 
 async function analyze() {
+  if (loading.value) return;
   visible.value = true;
   loading.value = true;
   error.value = '';

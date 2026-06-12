@@ -231,7 +231,7 @@ void MPU6050_ReturnTemp(short*Temperature)
 	
 	MPU6050_ReadData(MPU6050_RA_TEMP_OUT_H,buf,2);     //读取温度值
 	temp3= (buf[0] << 8) | buf[1];
-	*Temperature=(((double) (temp3 + 13200)) / 280)-13;
+	*Temperature=(short)(((double)temp3/340.0)+36.53);
 }
 
 /***************************************************************
@@ -330,8 +330,9 @@ void E53_SC2_Read_Data(void)
 	short  Accel[3];
 	short  Temp;
 	if (MPU6050ReadID() == 0)
-	{	
-	  while(1);
+	{
+	  printf("E53_SC2_Read_Data: MPU6050 read ID failed, skip this sample!\r\n");
+	  return;
   }
   MPU6050ReadAcc(Accel);			
   MPU6050_ReturnTemp(&Temp);

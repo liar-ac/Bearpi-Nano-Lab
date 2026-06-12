@@ -24,6 +24,7 @@ let unsubscribe: (() => void) | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 let alive = true;
 let trendRequestId = 0;
+let loadRequestId = 0;
 
 const boardPowerCodes = new Set(['voltage', 'current', 'power']);
 const modulePowerCodes = new Set(['power_mcu', 'power_wifi', 'power_sensor', 'power_motor', 'power_light']);
@@ -225,17 +226,20 @@ const trendCards = computed(() => [
 ]);
 
 async function load() {
+  const current = ++loadRequestId;
   loading.value = true;
   error.value = '';
   try {
     const response = await fetchDevices({ includeInactive: true });
+    if (current !== loadRequestId) return;
     devices.value = response.results;
     ensureTrendDevice();
     void loadPowerTrend();
   } catch (cause) {
+    if (current !== loadRequestId) return;
     error.value = cause instanceof Error ? cause.message : '功耗数据加载失败';
   } finally {
-    loading.value = false;
+    if (current === loadRequestId) loading.value = false;
   }
 }
 

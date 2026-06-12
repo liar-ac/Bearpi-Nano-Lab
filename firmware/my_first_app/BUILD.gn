@@ -3,6 +3,6 @@ static_library("myapp") {
         "hello_world.c"
     ]
     include_dirs = [
-        "//utils/native/liteos/include"
+        "//utils/native/lite/include"
     ]
 }

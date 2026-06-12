@@ -33,7 +33,10 @@ CHANNEL_LAYERS = {
 }
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = ()  # noqa: F405
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}  # noqa: F405
+# 视图级ScopedRateThrottle仍会查找scope速率，置空会抛ImproperlyConfigured，改为超高速率
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
+    scope: "10000/min" for scope in REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]  # noqa: F405
+}
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),

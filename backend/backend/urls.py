@@ -19,6 +19,11 @@ urlpatterns = [
         serve,
         {"document_root": str(settings.FRONTEND_DIST_DIR / "assets")},
     ),
+    re_path(
+        r"^static/(?P<path>.*)$",
+        serve,
+        {"document_root": str(settings.STATIC_ROOT)},
+    ),
     path("", frontend_index, name="frontend-root"),
-    re_path(r"^(?!api/|admin/|health$|assets/|ws/).*$", frontend_index, name="frontend-spa"),
+    re_path(r"^(?!api/|admin/|health$|assets/|static/|ws/).*$", frontend_index, name="frontend-spa"),
 ]

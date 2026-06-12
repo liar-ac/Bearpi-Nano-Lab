@@ -27,8 +27,8 @@ const actuatorSensors = computed(() =>
 
 onLoad((query) => {
   const id = Number(query?.id);
-  if (!Number.isFinite(id)) {
-    error.value = '设备 ID 无效';
+  if (!Number.isInteger(id) || id <= 0) {
+    error.value = '设备ID无效';
     return;
   }
   deviceId.value = id;

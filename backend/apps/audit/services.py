@@ -1,8 +1,12 @@
 import json
+import logging
 
 from django.conf import settings
 
 from apps.audit.models import AuditLog
+
+
+logger = logging.getLogger(__name__)
 
 
 # audit metadata 字段写入上限（默认 8KB JSON），避免恶意/失控调用塞入超大对象
@@ -26,15 +30,19 @@ def _sanitize_metadata(metadata):
 def record_audit(request, action, target, detail, metadata=None, actor_name=None):
     user = getattr(request, "user", None)
     is_authenticated = bool(user and user.is_authenticated)
-    return AuditLog.objects.create(
-        actor=user if is_authenticated else None,
-        actor_name=(actor_name or (user.get_username() if is_authenticated else "device"))[:150],
-        action=action,
-        target=(target or "")[:160],
-        detail=(detail or "")[:255],
-        metadata=_sanitize_metadata(metadata),
-        ip_address=client_ip(request),
-    )
+    try:
+        return AuditLog.objects.create(
+            actor=user if is_authenticated else None,
+            actor_name=(actor_name or (user.get_username() if is_authenticated else "device"))[:150],
+            action=action,
+            target=(target or "")[:160],
+            detail=(detail or "")[:255],
+            metadata=_sanitize_metadata(metadata),
+            ip_address=client_ip(request),
+        )
+    except Exception:
+        logger.exception("audit write failed: %s %s", action, target)
+        return None
 
 
 def client_ip(request):

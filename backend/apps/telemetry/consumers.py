@@ -27,11 +27,13 @@ class RealtimeConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         token = self.extract_token()
         if not token:
+            await self.accept()
             await self.close(code=4401)
             return
 
         user = await self.resolve_user(token)
         if user is None:
+            await self.accept()
             await self.close(code=4401)
             return
 

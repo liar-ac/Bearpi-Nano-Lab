@@ -54,7 +54,7 @@ class RegisterView(APIView):
 class AccountUsersView(APIView):
     def get(self, request):
         self.ensure_admin(request)
-        users = User.objects.all().order_by("date_joined", "id")
+        users = User.objects.all().select_related("role_profile").order_by("date_joined", "id")
         return Response(AccountUserSerializer(users, many=True).data)
 
     def ensure_admin(self, request):

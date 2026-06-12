@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
+import math
 import random
 
 from asgiref.sync import async_to_sync
@@ -46,7 +47,11 @@ class SensorHistoryView(APIView):
         if end - start > MAX_HISTORY_RANGE:
             raise ValidationError({"end": f"history range must be within {MAX_HISTORY_RANGE.days} days"})
 
-        rows = RawPoint.objects.filter(sensor=sensor, ts__gte=start, ts__lte=end).order_by("ts")
+        rows = (
+            RawPoint.objects.filter(sensor=sensor, ts__gte=start, ts__lte=end)
+            .order_by("ts")
+            .values_list("ts", "value")
+        )
         buckets = bucket_points(rows, start, INTERVALS[interval])
         return Response({
             "metric": sensor.name,
@@ -81,6 +86,8 @@ class TelemetryIngestView(APIView):
     throttle_scope = "telemetry_ingest"
 
     def post(self, request):
+        if not isinstance(request.data, dict):
+            raise ValidationError({"detail": "JSON object body required"})
         if not valid_device_token(request, request.data):
             return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -98,6 +105,11 @@ class TelemetryIngestView(APIView):
         points = valid_points
         if not points:
             raise ValidationError({"metrics": "at least one valid sensor data point is required (each needs sensor_code, value)"})
+        if len(points) > 64:
+            raise ValidationError({"metrics": "at most 64 sensor data points are allowed per request"})
+        for item in points:
+            if len(item["sensor_code"]) > 32:
+                raise ValidationError({"sensor_code": "sensor_code must be at most 32 characters"})
         device = resolve_or_register_device(request.data, [item["sensor_code"] for item in points])
         points = append_ia1_control_points(device, points)
 
@@ -116,8 +128,9 @@ class TelemetryIngestView(APIView):
                 raise ValidationError({"sensor_code": f"sensor {item['sensor_code']} does not exist on {device.sn}"})
             item_ts = item["ts"]
             raw_points.append(RawPoint(device=device, sensor=sensor, ts=item_ts, value=item["value"]))
-            sensor.latest_ts = item_ts
-            sensor.latest_value = item["value"]
+            if sensor.latest_ts is None or item_ts >= sensor.latest_ts:
+                sensor.latest_ts = item_ts
+                sensor.latest_value = item["value"]
             update_sensors.append(sensor)
 
         with transaction.atomic():
@@ -146,8 +159,10 @@ class TelemetryIngestView(APIView):
                 else:
                     device.abnormal_reason = ""
             latest_ts = max(item["ts"] for item in points)
-            device.last_seen = latest_ts
+            device.last_seen = timezone.now()
             device.save(update_fields=["status", "last_seen", "abnormal_reason"])
+            for payload in published:
+                payload["status"] = device.status
 
             cloud = getattr(device, "cloud", None)
             if cloud:
@@ -261,9 +276,12 @@ def parse_optional_datetime(value):
 
 def parse_numeric(value, field):
     try:
-        return float(value)
+        result = float(value)
     except (TypeError, ValueError):
         raise ValidationError({field: "numeric value is required"})
+    if not math.isfinite(result):
+        raise ValidationError({field: "numeric value is required"})
+    return result
 
 
 def persist_and_publish(sensor, value, ts):
@@ -336,11 +354,11 @@ def record_threshold_alarm(sensor, value, ts):
 
 
 def close_resolved_alarms(sensor):
-    """自动关闭已恢复的NEW告警。ACKNOWLEDGED告警保留操作员确认记录，需显式关闭。"""
+    """自动关闭已恢复的NEW/ACKNOWLEDGED告警，数值回归正常后无需人工显式关闭。"""
     Alarm.objects.filter(
         device=sensor.device,
         sensor=sensor,
-        status=Alarm.Status.NEW,
+        status__in=[Alarm.Status.NEW, Alarm.Status.ACKNOWLEDGED],
     ).select_for_update().update(status=Alarm.Status.CLOSED)
 
 
@@ -378,8 +396,8 @@ def parse_required_datetime(value, field):
 def bucket_points(rows, start: datetime, step: timedelta):
     buckets = OrderedDict()
     step_seconds = int(step.total_seconds())
-    for row in rows:
-        offset = max(0, int((row.ts - start).total_seconds()))
+    for ts, value in rows:
+        offset = max(0, int((ts - start).total_seconds()))
         bucket_start = start + timedelta(seconds=(offset // step_seconds) * step_seconds)
-        buckets.setdefault(bucket_start, []).append(row.value)
+        buckets.setdefault(bucket_start, []).append(value)
     return buckets

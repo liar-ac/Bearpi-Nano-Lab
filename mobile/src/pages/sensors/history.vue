@@ -14,10 +14,11 @@ const interval = ref<HistoryInterval>('5m');
 const rangeDays = ref(7);
 const loading = ref(false);
 const error = ref('');
+let searchRequestId = 0;
 
 const points = computed<Point[]>(() => data.value?.points ?? []);
-const maxValue = computed(() => Math.max(...points.value.map((point) => Math.abs(point.value)), 1));
 const chartPoints = computed(() => points.value.slice(-40));
+const maxValue = computed(() => Math.max(...chartPoints.value.map((point) => Math.abs(point.value)), 1));
 
 onLoad(async (query) => {
   const parsedDeviceId = Number(query?.deviceId) || 0;
@@ -48,20 +49,24 @@ async function loadMeta() {
 
 async function search() {
   if (!sensorId.value) return;
+  const localRequestId = ++searchRequestId;
   loading.value = true;
   const end = new Date();
   const start = new Date(Date.now() - rangeDays.value * 24 * 60 * 60_000);
   try {
     error.value = '';
-    data.value = await fetchHistory(sensorId.value, {
+    const response = await fetchHistory(sensorId.value, {
       start: start.toISOString(),
       end: end.toISOString(),
       interval: interval.value
     });
+    if (localRequestId !== searchRequestId) return;
+    data.value = response;
   } catch (cause) {
+    if (localRequestId !== searchRequestId) return;
     error.value = cause instanceof Error ? cause.message : '历史数据查询失败';
   } finally {
-    loading.value = false;
+    if (localRequestId === searchRequestId) loading.value = false;
   }
 }
 
