@@ -809,7 +809,8 @@ export function mockUpdateRule(sensorId: number, payload: { min?: number | null;
 
 export function mockSendAiChat(
   feature: string,
-  context: Record<string, unknown>
+  context: Record<string, unknown>,
+  _signal?: AbortSignal | null
 ): Promise<{ reply: string; feature: string }> {
   const replies: Record<string, string> = {
     dashboard: '当前实验室共 4 台 BearPi-HM Nano 开发板，其中 1 台在线、1 台异常、1 台维护中、1 台离线。',
@@ -823,7 +824,8 @@ export function mockSendAiChat(
 
 export function mockSendAiQuery(
   question: string,
-  _history?: Array<{ role: string; content: string }>
+  _history?: Array<{ role: string; content: string }>,
+  _signal?: AbortSignal | null
 ): Promise<{ reply: string; question: string }> {
   const lower = question.toLowerCase();
   let reply: string;
@@ -843,7 +845,7 @@ export function mockSendAiQuery(
   return delay({ reply, question });
 }
 
-export function mockParseAiCommand(text: string): Promise<{
+export function mockParseAiCommand(text: string, _signal?: AbortSignal | null): Promise<{
   detected: boolean;
   device_sn?: string;
   device_id?: number;

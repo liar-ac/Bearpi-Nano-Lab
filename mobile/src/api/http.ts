@@ -28,14 +28,18 @@ function clearSession() {
   uni.$emit(AUTH_CLEARED_EVENT);
 }
 
-function rawRequest<T>(path: string, options: RequestOptions, token: string | null): Promise<{ statusCode: number; data: T }> {
+function rawRequest<T>(path: string, options: RequestOptions, token: string | null, signal?: AbortSignal | null): Promise<{ statusCode: number; data: T }> {
   const header: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.header ?? {})
   };
   if (token) header.Authorization = `Bearer ${token}`;
   return new Promise((resolve, reject) => {
-    uni.request({
+    if (signal?.aborted) {
+      reject(new ApiError('请求已取消'));
+      return;
+    }
+    const task = uni.request({
       url: `${API_BASE}${path}`,
       method: (options.method ?? 'GET') as UniNamespace.RequestOptions['method'],
       data: options.data as Record<string, unknown> | string | undefined,
@@ -44,6 +48,13 @@ function rawRequest<T>(path: string, options: RequestOptions, token: string | nu
       success: (res) => resolve({ statusCode: res.statusCode, data: res.data as T }),
       fail: (err) => reject(new ApiError(err.errMsg || '网络异常'))
     });
+    if (signal) {
+      const onAbort = () => {
+        task.abort();
+        reject(new ApiError('请求已取消'));
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
   });
 }
 
@@ -76,14 +87,14 @@ export function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}, signal?: AbortSignal | null): Promise<T> {
   const token = uni.getStorageSync(TOKEN_KEY);
-  let res = await rawRequest<T>(path, options, token || null);
+  let res = await rawRequest<T>(path, options, token || null, signal);
 
   if (res.statusCode === 401 && !path.startsWith('/auth/')) {
     const nextToken = await refreshAccessToken();
     if (nextToken) {
-      res = await rawRequest<T>(path, options, nextToken);
+      res = await rawRequest<T>(path, options, nextToken, signal);
     }
   }
 

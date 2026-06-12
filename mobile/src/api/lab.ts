@@ -206,20 +206,20 @@ export function fetchAuditLogs(params: { action?: string; limit?: number; offset
   return request<PagedResponse<AuditLog>>(`/audit-logs${query}`).then(normalizeListResponse);
 }
 
-export function sendAiChat(feature: string, context: Record<string, unknown>) {
-  if (USE_MOCK) return mockSendAiChat(feature, context);
+export function sendAiChat(feature: string, context: Record<string, unknown>, signal?: AbortSignal | null) {
+  if (USE_MOCK) return mockSendAiChat(feature, context, signal);
   return request<{ reply: string; feature: string; data_source?: string }>('/ai/chat', {
     method: 'POST',
     data: { feature, context }
-  });
+  }, signal);
 }
 
-export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>) {
-  if (USE_MOCK) return mockSendAiQuery(question, history);
+export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>, signal?: AbortSignal | null) {
+  if (USE_MOCK) return mockSendAiQuery(question, history, signal);
   return request<{ reply: string; question: string; data_source?: string; diagnostic?: Record<string, unknown> }>('/ai/query', {
     method: 'POST',
     data: { question, history }
-  });
+  }, signal);
 }
 
 export interface AiCommandResult {
@@ -234,10 +234,10 @@ export interface AiCommandResult {
   explanation?: string;
 }
 
-export function parseAiCommand(text: string) {
-  if (USE_MOCK) return mockParseAiCommand(text);
+export function parseAiCommand(text: string, signal?: AbortSignal | null) {
+  if (USE_MOCK) return mockParseAiCommand(text, signal);
   return request<AiCommandResult>('/ai/command', {
     method: 'POST',
     data: { text }
-  });
+  }, signal);
 }

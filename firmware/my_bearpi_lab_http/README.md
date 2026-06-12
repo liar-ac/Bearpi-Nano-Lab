@@ -11,12 +11,18 @@ It does four things in a loop:
 
 ## Backend Address
 
+Your current computer Wi-Fi IP is:
+
+```text
+10.212.180.213
+```
+
 The board should call:
 
 ```text
-http://YOUR_SERVER_IP:8000/api/v1/ingest/telemetry
-http://YOUR_SERVER_IP:8000/api/v1/device/commands/pull
-http://YOUR_SERVER_IP:8000/api/v1/device/commands/ack
+http://10.212.180.213:8000/api/v1/ingest/telemetry
+http://10.212.180.213:8000/api/v1/device/commands/pull
+http://10.212.180.213:8000/api/v1/device/commands/ack
 ```
 
 ## Configure
@@ -30,9 +36,9 @@ include/bearpi_lab_config.h
 Set:
 
 ```c
-#define BEARPI_WIFI_SSID      "YOUR_WIFI_SSID"
-#define BEARPI_WIFI_PASSWORD  "YOUR_WIFI_PASSWORD"
-#define BEARPI_SERVER_HOST    "YOUR_SERVER_IP"
+#define BEARPI_WIFI_SSID      "liar"
+#define BEARPI_WIFI_PASSWORD  "your-wifi-password"
+#define BEARPI_SERVER_HOST    "10.212.180.213"
 #define BEARPI_SERVER_HOST_FALLBACK "192.168.137.1"
 #define BEARPI_DEVICE_SN      "BEARPI-NANO-A001"
 #define BEARPI_DEVICE_TOKEN_SECRET "replace-me-device-token-secret"
@@ -115,15 +121,17 @@ power_mW = supply_voltage * current_mA
 
 Run Django like this:
 
-```bash
-cd backend
+```powershell
+cd "C:\Users\32918\Desktop\IoT embedding\iot big\backend"
+$env:DJANGO_ALLOWED_HOSTS="127.0.0.1,localhost,10.212.180.213,192.168.137.1"
+$env:DEVICE_TOKEN_SECRET="replace-me-device-token-secret"
 python manage.py runserver 0.0.0.0:8000
 ```
 
 Then open:
 
 ```text
-http://YOUR_SERVER_IP:8000/health
+http://10.212.180.213:8000/health
 ```
 
 ## Expected Frontend Result
@@ -131,7 +139,7 @@ http://YOUR_SERVER_IP:8000/health
 Open:
 
 ```text
-http://YOUR_SERVER_IP:8000/
+http://10.212.180.213:8000/
 ```
 
 Go to:
