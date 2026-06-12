@@ -457,8 +457,8 @@ watch(input, () => nextTick(autoH));
           <button v-if="selectMode && selectedIds.size > 0" class="side-action-btn danger" type="button" @click="removeSelected">
             <Delete :size="14" /> 删除({{ selectedIds.size }})
           </button>
-          <button v-if="selectMode" class="side-action-btn" type="button" @click="selectAll">
-            {{ selectedIds.size === sessions.length ? '取消全选' : '全选' }}
+          <button v-if="selectMode" class="side-action-btn" :class="{ active: selectedIds.size === sessions.length }" type="button" @click="selectAll">
+            <CircleCheck :size="14" /> {{ selectedIds.size === sessions.length ? '取消全选' : '全选' }}
           </button>
         </div>
         <div class="side-list">
@@ -744,37 +744,41 @@ watch(input, () => nextTick(autoH));
 .side-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #667085;
-  font-size: 11px;
+  background: transparent;
+  color: #1d2430;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 150ms ease;
+  white-space: nowrap;
 }
 
 .side-action-btn:hover {
-  background: #ffffff;
-  color: #344054;
-}
-
-.side-action-btn.active {
-  border-color: rgba(10, 132, 255, 0.3);
   background: rgba(10, 132, 255, 0.08);
+  border-color: rgba(10, 132, 255, 0.2);
   color: #0a84ff;
 }
 
+.side-action-btn.active {
+  background: #0a84ff;
+  border-color: #0a84ff;
+  color: #ffffff;
+}
+
 .side-action-btn.danger {
-  border-color: rgba(255, 69, 58, 0.2);
+  border-color: rgba(255, 69, 58, 0.3);
   color: #ff453a;
 }
 
 .side-action-btn.danger:hover {
-  background: rgba(255, 69, 58, 0.08);
+  background: rgba(255, 69, 58, 0.1);
+  border-color: rgba(255, 69, 58, 0.4);
 }
 
 .side-check {
