@@ -19,13 +19,26 @@ import {
 import { ElMessageBox } from 'element-plus';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { realtimeState, realtimeStatusLabel } from '@/api/realtime';
+import { realtimeState, realtimeStatusLabel, subscribeRealtime } from '@/api/realtime';
 import { useAuthStore } from '@/stores/auth';
+import { useDeviceStore } from '@/stores/devices';
 import { relativeTime, roleLabel } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const deviceStore = useDeviceStore();
+
+let unsubscribe: (() => void) | null = null;
+
+onMounted(() => {
+  // 全局订阅实时事件，确保所有页面都能看到正确的连接状态
+  unsubscribe = subscribeRealtime(deviceStore.applyRealtime);
+});
+
+onBeforeUnmount(() => {
+  unsubscribe?.();
+});
 
 const title = computed(() => String(route.meta.title ?? '小熊派 Nano 实验室'));
 const realtimeTone = computed(() => {
