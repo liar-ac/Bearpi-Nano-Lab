@@ -517,6 +517,7 @@ class DeviceCommandAckView(APIView):
             command.ack_at = serializer.validated_data.get("ack_at", timezone.now())
 
             update_fields = ["status", "ack_at"]
+            original_message = command.message
             message = serializer.validated_data.get("message")
             if message is not None:
                 command.message = message
@@ -524,7 +525,7 @@ class DeviceCommandAckView(APIView):
             elif command.status == DeviceCommand.Status.ACKED:
                 command.message = "设备已确认执行"
                 update_fields.append("message")
-            elif command.status == DeviceCommand.Status.FAILED and command.message.endswith("等待设备 ACK"):
+            elif command.status == DeviceCommand.Status.FAILED:
                 command.message = "设备执行失败"
                 update_fields.append("message")
 

@@ -90,7 +90,7 @@ export const useDeviceStore = defineStore('devices', () => {
         ...device,
         status: newStatus,
         lastSeen: message.ts,
-        abnormalReason: newStatus === 'online' ? '' : device.abnormalReason,
+        /* Don't clear abnormalReason here - let the next full refresh update it from backend */
         sensors: device.sensors.map((sensor) =>
           sensor.id === message.sensorId
             ? { ...sensor, latest: { ts: message.ts, value: message.value } }
