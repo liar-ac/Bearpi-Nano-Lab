@@ -198,7 +198,6 @@ function onKey(e: KeyboardEvent) {
 // ── Send ──────────────────────────────────────────────────────
 function send(withCtx = false) {
   const q = input.value.trim();
-  console.log('[AI] send called, q:', q, 'visible:', visible.value);
   if (!q || !currentSession.value) return;
   snapshotScroll();
   if (generating.value) {
@@ -215,10 +214,8 @@ function send(withCtx = false) {
 
 // ── AI ────────────────────────────────────────────────────────
 async function ask(question: string) {
-  console.log('[AI] ask called, visible:', visible.value);
   if (!currentSession.value) return;
   generating.value = true; aiStatus.value = 'connecting';
-  console.log('[AI] generating set to true, visible:', visible.value);
   const msg: ChatMessage = { id: nextId(), role: 'assistant', content: '', ts: Date.now(), status: 'generating' };
   snapshotScroll();
   currentSession.value.messages.push(msg); scrollDown(true);
@@ -366,14 +363,8 @@ function copy(t: string) { navigator.clipboard.writeText(t).then(() => ElMessage
 function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
 
 function useExample(q: string) {
-  console.log('[AI] useExample called with:', q);
-  console.log('[AI] visible before:', visible.value);
   input.value = q;
-  nextTick(() => {
-    console.log('[AI] calling send()');
-    send();
-    console.log('[AI] send() returned, visible:', visible.value);
-  });
+  nextTick(() => send());
 }
 function open() { visible.value = true; load(); nextTick(() => textareaRef.value?.focus()); }
 function clear() { if (currentSession.value) { currentSession.value.messages = []; queue.value = []; if (generating.value) stop(); save(); } }
@@ -389,9 +380,8 @@ function onGlobalKey(e: KeyboardEvent) {
   }
 }
 
-onBeforeUnmount(() => { console.log('[AI] onBeforeUnmount called'); if (generating.value) stop(); window.removeEventListener('keydown', onGlobalKey); });
+onBeforeUnmount(() => { if (generating.value) stop(); window.removeEventListener('keydown', onGlobalKey); });
 watch(visible, (v) => {
-  console.log('[AI] visible changed to:', v);
   if (v) { load(); nextTick(() => textareaRef.value?.focus()); window.addEventListener('keydown', onGlobalKey); }
   else { window.removeEventListener('keydown', onGlobalKey); }
 });
