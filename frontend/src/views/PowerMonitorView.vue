@@ -433,7 +433,7 @@ onMounted(load);
             />
           </el-select>
           <el-radio-group v-model="trendRange">
-            <el-radio-button v-for="range in trendRanges" :key="range.value" :label="range.value">
+            <el-radio-button v-for="range in trendRanges" :key="range.value" :value="range.value">
               {{ range.label }}
             </el-radio-button>
           </el-radio-group>

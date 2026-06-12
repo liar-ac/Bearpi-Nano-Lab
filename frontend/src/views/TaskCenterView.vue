@@ -318,8 +318,8 @@ function taskType(status: BulkTaskStatus) {
           <h3>创建控制任务</h3>
         </div>
         <el-radio-group v-model="target">
-          <el-radio-button label="online">在线/异常</el-radio-button>
-          <el-radio-button label="all">全部板卡</el-radio-button>
+          <el-radio-button value="online">在线/异常</el-radio-button>
+          <el-radio-button value="all">全部板卡</el-radio-button>
         </el-radio-group>
       </div>
       <div class="task-action-grid">
@@ -360,7 +360,7 @@ function taskType(status: BulkTaskStatus) {
             <template #prefix><Search :size="16" /></template>
           </el-input>
           <el-radio-group v-model="selectedStatus">
-            <el-radio-button v-for="filter in statusFilters" :key="filter.value" :label="filter.value">
+            <el-radio-button v-for="filter in statusFilters" :key="filter.value" :value="filter.value">
               {{ filter.label }}
             </el-radio-button>
           </el-radio-group>

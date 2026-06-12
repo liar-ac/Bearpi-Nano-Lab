@@ -206,14 +206,14 @@ function selectSlot(slot: LabSlot) {
     <section class="topology-toolbar panel-section">
       <div class="toolbar-group">
         <el-radio-group v-model="selectedFilter">
-          <el-radio-button v-for="filter in filters" :key="filter.value" :label="filter.value">
+          <el-radio-button v-for="filter in filters" :key="filter.value" :value="filter.value">
             {{ filter.label }}
           </el-radio-button>
         </el-radio-group>
       </div>
       <div class="toolbar-group">
         <el-radio-group v-model="selectedLayer">
-          <el-radio-button v-for="layer in layerOptions" :key="layer.value" :label="layer.value">
+          <el-radio-button v-for="layer in layerOptions" :key="layer.value" :value="layer.value">
             {{ layer.label }}
           </el-radio-button>
         </el-radio-group>

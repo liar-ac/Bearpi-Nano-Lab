@@ -314,7 +314,7 @@ async function runBulkControl(actuator: 'motor' | 'light', mode: 'auto' | 'on' |
         <p>这里只展示活跃接入的板卡；断开或停止上报后会自动从列表移除。</p>
       </div>
       <el-radio-group v-model="store.selectedStatus" size="large">
-        <el-radio-button v-for="filter in filters" :key="filter.value" :label="filter.value">
+        <el-radio-button v-for="filter in filters" :key="filter.value" :value="filter.value">
           {{ filter.label }}
         </el-radio-button>
       </el-radio-group>
