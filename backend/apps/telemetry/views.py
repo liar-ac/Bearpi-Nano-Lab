@@ -225,7 +225,7 @@ def parse_ingest_points(data):
         for service in services:
             if not isinstance(service, dict):
                 continue
-            service_ts = parse_optional_datetime(service.get("event_time") or data.get("event_time"))
+            service_ts = parse_optional_datetime(service.get("event_time") or data.get("event_time") or data.get("ts"))
             properties = service.get("properties")
             if isinstance(properties, dict):
                 points.extend(

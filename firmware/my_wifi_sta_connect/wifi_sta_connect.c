@@ -251,13 +251,14 @@ static void OnWifiConnectionChangedHandler(int state, WifiLinkedInfo *info)
 {
     (void)info;
 
-    if (state > 0)
+    if (state == WIFI_STATE_AVALIABLE)
     {
         g_ConnectSuccess = 1;
         printf("callback function for wifi connect\r\n");
     }
     else
     {
+        g_ConnectSuccess = 0;
         printf("connect error,please check password\r\n");
     }
     return;
