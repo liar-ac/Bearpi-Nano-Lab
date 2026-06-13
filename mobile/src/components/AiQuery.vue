@@ -319,8 +319,9 @@ function parseBulkIntent(text: string): { actuator: 'motor' | 'light'; mode: 'au
 
 async function detectCmd(idx: number) {
   if (!currentSession.value) return;
+  generating.value = true;
   const user = currentSession.value.messages[idx];
-  if (!user) return;
+  if (!user) { generating.value = false; return; }
   const isBulk = bulkKw.some((k) => user.content.includes(k));
   const hasActuator = actuatorKw.some((k) => user.content.includes(k));
   const hasDevice = /[aA]\d{3}|槽位\d+|bearpi/i.test(user.content);
@@ -351,13 +352,16 @@ async function detectCmd(idx: number) {
         cmd.content = r.explanation || '未识别为设备控制指令';
         cmd.commandStatus = 'rejected';
         cmd.command = undefined;
+        generating.value = false;
         ask(user.content);
+        return;
       }
     }
   } catch {
     cmd.content = '指令解析失败';
     cmd.commandStatus = 'error';
   }
+  generating.value = false;
   scrollDown();
 }
 
