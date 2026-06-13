@@ -131,10 +131,12 @@ int WifiConnect(const char *ssid, const char *psk)
     printf("********************\r\n");
     
     //连接指定的WiFi热点
+    uint8_t ssidFound = 0;
     for(uint8_t i = 0; i < ssid_count; i++)
     {
         if (strcmp(ssid, info[i].ssid) == 0)
         {
+            ssidFound = 1;
             int result;
 
             printf("Select:%3d wireless, Waiting...\r\n", i+1);
@@ -155,13 +157,12 @@ int WifiConnect(const char *ssid, const char *psk)
                 }
             }
         }
-
-        if(i == ssid_count-1)
-        {
-            printf("ERROR: No wifi as expected\r\n");
-            free(info);
-            return -1;
-        }
+    }
+    if (!ssidFound)
+    {
+        printf("ERROR: No wifi as expected\r\n");
+        free(info);
+        return -1;
     }
      //启动DHCP
     if (g_lwip_netif == NULL)

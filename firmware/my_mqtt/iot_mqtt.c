@@ -50,8 +50,13 @@ static void MQTT_DemoTask(void)
 
 	NetworkInit(&network);
 	printf("NetworkConnect  ...\n");
-begin:	
-	NetworkConnect(&network, "YOUR_MQTT_SERVER_IP", 1883);
+begin:
+	rc = NetworkConnect(&network, "YOUR_MQTT_SERVER_IP", 1883);
+	if (rc != 0) {
+		printf("NetworkConnect failed: %d\n", rc);
+		osDelay(200);
+		goto begin;
+	}
 	printf("MQTTClientInit  ...\n");
 	MQTTClientInit(&client, &network, 2000, sendBuf, sizeof(sendBuf), readBuf, sizeof(readBuf));
 

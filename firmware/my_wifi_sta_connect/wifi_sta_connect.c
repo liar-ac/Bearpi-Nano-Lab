@@ -160,13 +160,12 @@ static BOOL WifiSTATask(void)
                 }
             }
         }
-
-        if(i == ssid_count-1)
-        {
-            printf("ERROR: No wifi as expected\r\n");
-            free(info);
-            return -1;
-        }
+    }
+    if (!ssidFound)
+    {
+        printf("ERROR: No wifi as expected\r\n");
+        free(info);
+        return -1;
     }
 
     //启动DHCP
