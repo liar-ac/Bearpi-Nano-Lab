@@ -461,7 +461,6 @@ static int ConnectTcp(void)
         if (sock >= 0) {
             snprintf(g_activeServerHostBuf, sizeof(g_activeServerHostBuf), "%s", BEARPI_SERVER_HOST_FALLBACK);
             g_activeServerHost = g_activeServerHostBuf;
-            g_activeServerHost = BEARPI_SERVER_HOST_FALLBACK;
             return sock;
         }
     }
