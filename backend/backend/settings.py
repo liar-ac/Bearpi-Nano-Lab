@@ -211,7 +211,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127\.0\.0\.1:517[0-9]$",
     r"^http://localhost:517[0-9]$",
     r"^http://192\.168\.\d+\.\d+:(517[0-9]|8000)$",
-    r"^http://10\.\d+\.\d+\.\d+:5173$",
+    r"^http://10\.\d+\.\d+\.\d+:(517[0-9]|8000)$",
 ] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = csv_env(

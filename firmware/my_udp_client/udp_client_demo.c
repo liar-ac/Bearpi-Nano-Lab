@@ -74,8 +74,13 @@ static void UDPClientTask(void)
 
         //接收服务端返回的字符串
         from_length = sizeof(from_addr);
-        recvfrom(sock_fd, recvBuf, sizeof(recvBuf), 0, (struct sockaddr *)&from_addr, &from_length);
-        printf("%s:%d=>%s\n", inet_ntoa(from_addr.sin_addr), ntohs(from_addr.sin_port), recvBuf);
+        ssize_t n = recvfrom(sock_fd, recvBuf, sizeof(recvBuf) - 1, 0, (struct sockaddr *)&from_addr, &from_length);
+        if (n > 0) {
+            recvBuf[n] = '\0';
+            printf("%s:%d=>%s\n", inet_ntoa(from_addr.sin_addr), ntohs(from_addr.sin_port), recvBuf);
+        } else {
+            printf("recvfrom failed\r\n");
+        }
     }
 
     //关闭这个 socket
