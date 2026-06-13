@@ -32,11 +32,9 @@ def _detect_local_ip():
     """Auto-detect the LAN IP address of this machine."""
     import socket as _socket
     try:
-        s = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
-        s.connect(("10.0.0.1", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
+            s.connect(("10.0.0.1", 80))
+            return s.getsockname()[0]
     except Exception:
         return "127.0.0.1"
 

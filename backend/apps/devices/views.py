@@ -61,10 +61,10 @@ class DeviceListView(ListAPIView):
     def get_queryset(self):
         queryset = Device.objects.prefetch_related("sensors")
         cutoff = timezone.now() - timedelta(seconds=settings.DEVICE_ACTIVE_TTL_SECONDS)
-        include_inactive = self.request.query_params.get("include_inactive") == "true"
+        status_filter = self.request.query_params.get("status")
+        include_inactive = self.request.query_params.get("include_inactive") == "true" or status_filter == Device.Status.OFFLINE
         if not include_inactive:
             queryset = queryset.filter(Q(last_seen__gte=cutoff) | Q(status=Device.Status.MAINTENANCE))
-        status_filter = self.request.query_params.get("status")
         if status_filter == Device.Status.OFFLINE:
             queryset = queryset.filter(
                 Q(status=Device.Status.OFFLINE) | Q(last_seen__lt=cutoff) | Q(last_seen__isnull=True)

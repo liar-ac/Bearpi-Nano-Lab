@@ -192,6 +192,8 @@ class BulkTargetFilterTests(TestCase):
 
 
 class DeviceCommandAckTests(TestCase):
+    @mock.patch("apps.common.device_gateway.settings.DEVICE_TOKEN_SECRET", "unit-test-device-secret")
+    @mock.patch("apps.common.device_gateway.settings.DEVICE_INGEST_TOKEN", "")
     def test_duplicate_ack_does_not_overwrite_terminal_command(self):
         device = _make_device(1)
         command = DeviceCommand.objects.create(
@@ -203,6 +205,7 @@ class DeviceCommandAckTests(TestCase):
             message="首次执行成功",
         )
 
+        token = device_token_for_identifier(device.sn)
         request = APIRequestFactory().post(
             "/api/device/commands/ack",
             {
@@ -212,7 +215,7 @@ class DeviceCommandAckTests(TestCase):
                 "message": "迟到失败回执",
             },
             format="json",
-            HTTP_X_DEVICE_TOKEN=settings.DEVICE_INGEST_TOKEN,
+            HTTP_X_DEVICE_TOKEN=token,
         )
         response = DeviceCommandAckView.as_view()(request)
 

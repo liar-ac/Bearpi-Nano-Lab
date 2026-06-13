@@ -65,11 +65,16 @@ static BOOL WifiSTATask(void)
     //初始化WIFI
     WiFiInit();
 
-    //使能WIFI
-    if (EnableWifi() != WIFI_SUCCESS)
-    {
-        printf("EnableWifi failed, error = %d\n", error);
-        return -1;
+    //使能WIFI（如果尚未启用）
+    if (IsWifiActive() == 0) {
+        WifiErrorCode enableErr = EnableWifi();
+        if (enableErr != WIFI_SUCCESS)
+        {
+            printf("EnableWifi failed, error = %d\r\n", enableErr);
+            return -1;
+        }
+    } else {
+        printf("WiFi already active, skipping EnableWifi\r\n");
     }
 
     //判断WIFI是否激活
@@ -87,7 +92,9 @@ static BOOL WifiSTATask(void)
     }
 
     //轮询查找WiFi列表
-    do{
+    int scanRetries = 10;
+    while(g_staScanSuccess != 1 && scanRetries > 0)
+    {
         //重置标志位
         ssid_count = 0;
         g_staScanSuccess = 0;
@@ -105,11 +112,18 @@ static BOOL WifiSTATask(void)
         {
             printf("GetScanInfoList failed, error = %d\r\n", error);
             g_staScanSuccess = 0;
+            scanRetries--;
             continue;
         }
         ssid_count = size;
-
-    }while(g_staScanSuccess != 1);
+        scanRetries--;
+    }
+    if (g_staScanSuccess != 1)
+    {
+        printf("WiFi scan failed after retries\r\n");
+        free(info);
+        return -1;
+    }
 
     //打印WiFi列表
     printf("********************\r\n");
