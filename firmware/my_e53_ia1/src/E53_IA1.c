@@ -223,7 +223,10 @@ void E53_IA1_Read_Data(void)
     sht30_i2c_data.sendLen = 2;
     sht30_i2c_data.receiveBuf = SHT3X_Data_Buffer;
     sht30_i2c_data.receiveLen = 6;
-	I2cWriteread(WIFI_IOT_I2C_IDX_1,(SHT30_Addr<<1)|0x00,&sht30_i2c_data); 																							//Read bh1750 sensor data 
+	if (I2cWriteread(WIFI_IOT_I2C_IDX_1,(SHT30_Addr<<1)|0x00,&sht30_i2c_data) != 0) {
+		printf("SHT30 I2cWriteread failed, keeping previous temp/hum\r\n");
+		return;
+	} 
     
     //    /* check tem */
     data[0] = SHT3X_Data_Buffer[0];

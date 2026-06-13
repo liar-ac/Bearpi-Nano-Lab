@@ -298,7 +298,14 @@ async function processQueue() {
   if (generating.value || !queue.value.length) return;
   const entry = queue.value[0];
   const session = sessions.value.find((s) => s.id === entry.sessionId);
-  if (!session || currentSession.value?.id !== entry.sessionId) return;
+  if (!session || currentSession.value?.id !== entry.sessionId) {
+    queue.value.shift();
+    if (session) {
+      const qm = session.messages.find((m) => m.status === 'queued');
+      if (qm) { qm.status = 'error'; qm.content = '会话已切换'; }
+    }
+    return;
+  }
   queue.value.shift();
   const qm = session.messages.find((m) => m.status === 'queued');
   if (qm) qm.status = 'done';
