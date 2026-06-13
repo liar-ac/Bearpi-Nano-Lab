@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -98,6 +98,7 @@ class ThresholdAlarmExecutorTests(TestCase):
         self.assertEqual(alarm.level, Alarm.Level.WARNING)
 
 
+@override_settings(DEVICE_INGEST_TOKEN='test-token')
 class TelemetryIngestValidationTests(TestCase):
     """覆盖修复：非有限数值、非字典body、超长sensor_code在ingest入口被拒绝"""
 

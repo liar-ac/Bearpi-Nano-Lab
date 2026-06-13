@@ -155,7 +155,8 @@ int WifiConnect(const char *ssid, const char *psk)
 
 
     //等待DHCP
-    for(;;)
+    int dhcpTimeout = 300; /* 300 * 100ms = 30 seconds */
+    while (dhcpTimeout > 0)
     {
         if(dhcp_is_bound(g_lwip_netif) == ERR_OK)
         {
@@ -168,6 +169,14 @@ int WifiConnect(const char *ssid, const char *psk)
 
         printf("<-- DHCP state:Inprogress -->\r\n");
         osDelay(100);
+        dhcpTimeout--;
+    }
+    if (dhcpTimeout <= 0)
+    {
+        printf("<-- DHCP state:TIMEOUT -->\r\n");
+        dhcp_stop(g_lwip_netif);
+        g_lwip_netif = NULL;
+        return -1;
     }
 
     osDelay(100);

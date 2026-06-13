@@ -198,7 +198,7 @@ def serialize_bulk_task(batch_id, commands):
     stuck_cutoff = timezone.now() - BULK_TASK_STUCK_TIMEOUT
     overdue_command_ids = set()
     for command in commands:
-        if command.status == DeviceCommand.Status.SENT and command.created_at < stuck_cutoff:
+        if command.status == DeviceCommand.Status.SENT and (command.sent_at or command.created_at) < stuck_cutoff:
             overdue_command_ids.add(command.id)
             # 逾期命令计入FAILED统计，但不修改数据库
             counts[DeviceCommand.Status.FAILED] += 1
@@ -245,7 +245,7 @@ def serialize_bulk_task(batch_id, commands):
         })
         if command.status in (DeviceCommand.Status.SENT, DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED):
             logs.append({
-                "ts": command.created_at.isoformat(),
+                "ts": (command.sent_at or command.created_at).isoformat(),
                 "level": "info",
                 "message": f"槽位{command.device.slot_no}{command.device.sn}已被设备拉取",
                 "deviceId": command.device_id,
@@ -428,7 +428,7 @@ class DeviceBulkTaskRetryView(APIView):
             command
             for command in commands
             if command.status == DeviceCommand.Status.FAILED
-            or (command.status == DeviceCommand.Status.SENT and command.created_at < stuck_cutoff)
+            or (command.status == DeviceCommand.Status.SENT and (command.sent_at or command.created_at) < stuck_cutoff)
         ]
         if not failed_commands:
             raise ValidationError({"batch_id": "没有失败板卡可重试"})

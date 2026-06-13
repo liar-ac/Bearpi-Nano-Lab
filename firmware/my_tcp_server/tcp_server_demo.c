@@ -40,8 +40,6 @@ static void TCPServerTask(void)
 	struct sockaddr_in client_sock;
 	int sin_size;
 
-	struct sockaddr_in *cli_addr;
-
 	//连接Wifi
 	WifiConnect("YOUR_WIFI_SSID", "YOUR_WIFI_PASSWORD");
 
@@ -84,14 +82,7 @@ static void TCPServerTask(void)
 			continue;
 		}
 
-		cli_addr = malloc(sizeof(struct sockaddr));
-
 		printf("accept addr\r\n");
-
-		if (cli_addr != NULL)
-		{
-			memcpy(cli_addr, &client_sock, sizeof(struct sockaddr));
-		}
 
 		//处理目标
 		ssize_t ret;
