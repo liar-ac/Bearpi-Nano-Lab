@@ -290,16 +290,19 @@ async function ask(question: string) {
   } finally {
     if (abortController.value === ctrl) { abortController.value = null; generating.value = false; aiStatus.value = 'idle'; }
     scrollDown();
-    if (!generating.value && queue.value.length) {
-      const n = queue.value.shift()!;
-      const qm = currentSession.value.messages.find((m) => m.status === 'queued');
-      if (qm) qm.status = 'done';
-      await nextTick();
-      const qi = qm ? currentSession.value.messages.indexOf(qm) : -1;
-      if (looksCmd(n) && qi >= 0) void detectCmd(qi);
-      else ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ });
-    }
+    processQueue();
   }
+}
+
+async function processQueue() {
+  if (generating.value || !queue.value.length || !currentSession.value) return;
+  const n = queue.value.shift()!;
+  const qm = currentSession.value.messages.find((m) => m.status === 'queued');
+  if (qm) qm.status = 'done';
+  await nextTick();
+  const qi = qm ? currentSession.value.messages.indexOf(qm) : -1;
+  if (looksCmd(n) && qi >= 0) void detectCmd(qi);
+  else ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ });
 }
 
 // ── Command ───────────────────────────────────────────────────
@@ -392,9 +395,15 @@ async function execCmd(idx: number) {
     }
   } catch (e) { cmd.commandStatus = 'error'; cmd.content = `执行失败: ${e instanceof Error ? e.message : '未知错误'}`; }
   scrollDown();
+  processQueue();
 }
 
-function rejectCmd(idx: number) { if (currentSession.value) { const m = currentSession.value.messages[idx]; if (m) { m.commandStatus = 'rejected'; m.content = '已取消'; } } }
+function rejectCmd(idx: number) {
+  if (!currentSession.value) return;
+  const m = currentSession.value.messages[idx];
+  if (m) { m.commandStatus = 'rejected'; m.content = '已取消'; }
+  processQueue();
+}
 
 // ── Actions ───────────────────────────────────────────────────
 function stop() {
