@@ -424,6 +424,7 @@ def sync_known_board_profile(device, data=None):
             changed_fields = [f for f in changed_fields if f != 'sn']
             if changed_fields:
                 device.save(update_fields=changed_fields)
+            device.refresh_from_db(fields=['sn'])
 
     cloud, _ = CloudDeviceStatus.objects.get_or_create(
         device=device,
