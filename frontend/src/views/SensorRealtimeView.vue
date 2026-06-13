@@ -48,6 +48,7 @@ const alarmPoints = computed(() =>
 
 async function load() {
   try {
+    error.value = '';
     device.value = await fetchDevice(deviceId.value);
     sensor.value = device.value.sensors.find((item) => item.id === sensorId.value) ?? null;
     points.value = sensor.value?.latest

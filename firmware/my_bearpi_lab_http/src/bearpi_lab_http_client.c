@@ -85,6 +85,7 @@ static int g_motorOverride = ACTUATOR_AUTO;
 static int g_lightOverride = ACTUATOR_AUTO;
 static char g_deviceToken[DEVICE_TOKEN_HEX_SIZE];
 static int g_deviceTokenReady = 0;
+static char g_activeServerHostBuf[64] = {0};
 static const char *g_activeServerHost = BEARPI_SERVER_HOST;
 
 typedef struct {
@@ -445,7 +446,8 @@ static int ConnectTcp(void)
         printf("[bearpi-lab] trying gateway %s:%d\r\n", gwIp, BEARPI_SERVER_PORT);
         sock = ConnectTcpToHost(gwIp);
         if (sock >= 0) {
-            g_activeServerHost = gwIp;
+            snprintf(g_activeServerHostBuf, sizeof(g_activeServerHostBuf), "%s", gwIp);
+            g_activeServerHost = g_activeServerHostBuf;
             return sock;
         }
     }
@@ -457,6 +459,8 @@ static int ConnectTcp(void)
         printf("[bearpi-lab] trying fallback server %s:%d\r\n", BEARPI_SERVER_HOST_FALLBACK, BEARPI_SERVER_PORT);
         sock = ConnectTcpToHost(BEARPI_SERVER_HOST_FALLBACK);
         if (sock >= 0) {
+            snprintf(g_activeServerHostBuf, sizeof(g_activeServerHostBuf), "%s", BEARPI_SERVER_HOST_FALLBACK);
+            g_activeServerHost = g_activeServerHostBuf;
             g_activeServerHost = BEARPI_SERVER_HOST_FALLBACK;
             return sock;
         }
