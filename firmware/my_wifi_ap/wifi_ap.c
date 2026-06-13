@@ -161,6 +161,7 @@ static BOOL WifiAPTask(void)
         if(ret <= 0)
         {
             printf("UDP server receive failed!\r\n");
+            closesocket(sock_fd);
             return -1;
         }
         recvBuf[ret] = '\0';
@@ -170,6 +171,7 @@ static BOOL WifiAPTask(void)
         if (ret < 0)
         {
             printf("UDP server send failed!\r\n");
+            closesocket(sock_fd);
             return -1;
         }
     }

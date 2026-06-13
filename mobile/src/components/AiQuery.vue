@@ -344,7 +344,9 @@ async function detectCmd(idx: number) {
         cmd.commandStatus = 'rejected';
       }
     } else {
-      const r = await parseAiCommand(user.content);
+      const ctrl = new AbortController();
+      abortController.value = ctrl;
+      const r = await parseAiCommand(user.content, ctrl.signal);
       if (!generating.value) return; // stop() was called while we waited
       cmd.command = r;
       if (r.detected && r.device_id) {
@@ -358,7 +360,8 @@ async function detectCmd(idx: number) {
         return;
       }
     }
-  } catch {
+  } catch (e) {
+    if (!generating.value) return; // stop() was called while we waited
     cmd.content = '指令解析失败';
     cmd.commandStatus = 'error';
   }
