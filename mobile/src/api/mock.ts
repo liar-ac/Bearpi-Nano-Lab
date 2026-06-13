@@ -811,7 +811,7 @@ export function mockSendAiChat(
   feature: string,
   context: Record<string, unknown>,
   _signal?: AbortSignal | null
-): Promise<{ reply: string; feature: string }> {
+): Promise<{ reply: string; feature: string; data_source?: string }> {
   const replies: Record<string, string> = {
     dashboard: '当前实验室共 4 台 BearPi-HM Nano 开发板，其中 1 台在线、1 台异常、1 台维护中、1 台离线。',
     devices: '设备列表已为您加载完毕，可以点击任意设备查看传感器详情和下发指令。',
@@ -819,7 +819,7 @@ export function mockSendAiChat(
     rules: '传感器阈值规则已配置，您可以在规则管理页面修改上下限。当前温度阈值为 18-32℃，湿度阈值为 30-75%。'
   };
   const reply = replies[feature] ?? `收到功能「${feature}」的上下文，当前为离线模拟模式，无法调用真实 AI 服务。`;
-  return delay({ reply, feature });
+  return delay({ reply, feature, data_source: '本地模拟数据' });
 }
 
 export function mockSendAiQuery(

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiChat } from '@/api/lab';
 
 type AiFeature = 'alarm_diagnosis' | 'data_analysis' | 'rule_suggestion';
@@ -15,6 +16,8 @@ const visible = ref(false);
 const loading = ref(false);
 const reply = ref('');
 const error = ref('');
+const dataSource = ref('');
+const abortController = ref<AbortController | null>(null);
 
 const featureTitles: Record<AiFeature, string> = {
   alarm_diagnosis: 'AI告警诊断',
@@ -30,15 +33,25 @@ async function analyze() {
   loading.value = true;
   error.value = '';
   reply.value = '';
+  dataSource.value = '';
+  abortController.value?.abort();
+  abortController.value = new AbortController();
   try {
-    const result = await sendAiChat(props.feature, props.context);
+    const result = await sendAiChat(props.feature, props.context, abortController.value.signal);
     reply.value = result.reply;
+    dataSource.value = result.data_source ?? '';
   } catch (cause) {
+    if (cause instanceof Error && cause.name === 'AbortError') return;
     error.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
     uni.showToast({ title: error.value, icon: 'none' });
   } finally {
     loading.value = false;
+    abortController.value = null;
   }
+}
+
+function cancel() {
+  abortController.value?.abort();
 }
 
 function close() {
@@ -52,7 +65,7 @@ function close() {
     {{ triggerText ?? 'AI分析' }}
   </wd-button>
 
-  <wd-popup v-model="visible" position="bottom" closable custom-style="max-height: 80vh; padding: 24rpx; border-radius: 24rpx 24rpx 0 0;">
+  <wd-popup :model-value="visible" position="bottom" closable custom-style="max-height: 80vh; padding: 24rpx; border-radius: 24rpx 24rpx 0 0;" @update:model-value="(v: any) => { if (!loading) visible = v; }">
     <view class="ai-popup">
       <view class="ai-title">
         <text>{{ displayTitle }}</text>
@@ -61,6 +74,7 @@ function close() {
       <view v-if="loading" class="ai-loading">
         <wd-loading />
         <text>AI正在分析中,请稍候...</text>
+        <wd-button size="small" plain @click="cancel">取消</wd-button>
       </view>
 
       <view v-else-if="error" class="ai-error">
@@ -68,7 +82,8 @@ function close() {
       </view>
 
       <view v-else-if="reply" class="ai-reply">
-        <text selectable>{{ reply }}</text>
+        <MarkdownMessage :content="reply" />
+        <text v-if="dataSource" class="data-source">数据来源: {{ dataSource }}</text>
       </view>
 
       <wd-button block plain @click="close">关闭</wd-button>
@@ -103,6 +118,15 @@ function close() {
     color: $uni-text-color-grey;
     font-size: 26rpx;
   }
+}
+
+.data-source {
+  display: block;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid $uni-border-color;
+  color: $uni-text-color-grey;
+  font-size: 22rpx;
 }
 
 .ai-error {

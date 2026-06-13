@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
+import { onHide, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app';
 import { fetchBulkTasks, fetchDevices, retryBulkTask, sendBulkCommand } from '@/api/lab';
 import { useAuthStore } from '@/stores/auth';
-import type { BulkTask, BulkTaskActuator, BulkTaskMode, BulkTaskStatus, Device } from '@/types/domain';
+import type { BulkTask, BulkTaskActuator, BulkTaskCommand, BulkTaskMode, BulkTaskStatus, Device } from '@/types/domain';
 import { formatDateTime } from '@/utils/format';
 
 const auth = useAuthStore();
@@ -14,6 +14,10 @@ const creating = ref('');
 const retryingId = ref('');
 const error = ref('');
 const target = ref<'online' | 'all'>('online');
+const keyword = ref('');
+const selectedStatus = ref<BulkTaskStatus | 'all'>('all');
+const expandedId = ref('');
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const actionGroups: Array<{
   actuator: Exclude<BulkTaskActuator, 'unknown'>;
@@ -40,11 +44,35 @@ const actionGroups: Array<{
   }
 ];
 
+const statusFilters: Array<{ label: string; value: BulkTaskStatus | 'all' }> = [
+  { label: '全部', value: 'all' },
+  { label: '排队中', value: 'queued' },
+  { label: '执行中', value: 'running' },
+  { label: '已完成', value: 'completed' },
+  { label: '部分失败', value: 'partial' },
+  { label: '失败', value: 'failed' }
+];
+
 const stats = computed(() => ({
   total: tasks.value.length,
   running: tasks.value.filter((task) => task.status === 'queued' || task.status === 'running').length,
-  failed: tasks.value.filter((task) => task.failed > 0).length
+  failed: tasks.value.reduce((sum, task) => sum + task.failed, 0)
 }));
+const filteredTasks = computed(() => {
+  const query = keyword.value.trim().toLowerCase();
+  return tasks.value.filter((task) => {
+    if (selectedStatus.value !== 'all' && task.status !== selectedStatus.value) return false;
+    if (!query) return true;
+    return [
+      task.batchId,
+      task.title,
+      task.retryOf,
+      ...task.commands.flatMap((command) => [command.sn, String(command.slotNo)])
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+});
 const controllableCount = computed(() =>
   devices.value.filter((device) => device.status === 'online' || device.status === 'warning').length
 );
@@ -54,6 +82,19 @@ const targetCount = computed(() =>
 
 onShow(() => {
   void load();
+  if (!refreshTimer) {
+    refreshTimer = setInterval(() => {
+      void refreshTasksOnly();
+    }, 5000);
+  }
+});
+
+onHide(() => {
+  teardown();
+});
+
+onUnload(() => {
+  teardown();
 });
 
 onPullDownRefresh(async () => {
@@ -61,12 +102,19 @@ onPullDownRefresh(async () => {
   uni.stopPullDownRefresh();
 });
 
+function teardown() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+}
+
 async function load() {
   loading.value = true;
   error.value = '';
   try {
     const [taskResponse, deviceResponse] = await Promise.all([
-      fetchBulkTasks({ limit: 50 }),
+      fetchBulkTasks(),
       fetchDevices()
     ]);
     tasks.value = taskResponse.results;
@@ -80,7 +128,7 @@ async function load() {
 
 async function refreshTasksOnly() {
   try {
-    tasks.value = (await fetchBulkTasks({ limit: 50 })).results;
+    tasks.value = (await fetchBulkTasks()).results;
   } catch {
     // 保留上一轮任务列表，避免短暂网络抖动清空页面。
   }
@@ -169,6 +217,14 @@ function statusType(status: BulkTaskStatus) {
   if (status === 'running') return 'warning';
   return 'primary';
 }
+
+function commandStatusType(status: BulkTaskCommand['status']) {
+  return status === 'acked' ? 'success' : status === 'failed' ? 'danger' : 'primary';
+}
+
+function toggleDetail(task: BulkTask) {
+  expandedId.value = expandedId.value === task.batchId ? '' : task.batchId;
+}
 </script>
 
 <template>
@@ -231,20 +287,39 @@ function statusType(status: BulkTaskStatus) {
         <text>{{ stats.running }}</text>
       </view>
       <view class="metric-card">
-        <text>有失败</text>
+        <text>失败板卡</text>
         <text>{{ stats.failed }}</text>
       </view>
     </view>
 
+    <view class="filter-panel">
+      <wd-input v-model="keyword" clearable placeholder="搜索批次、槽位、SN" />
+      <scroll-view class="filter-scroll" scroll-x>
+        <view class="filter-row">
+          <text class="filter-label">状态</text>
+          <wd-button
+            v-for="filter in statusFilters"
+            :key="filter.value"
+            size="small"
+            :type="selectedStatus === filter.value ? 'primary' : 'info'"
+            :plain="selectedStatus !== filter.value"
+            @click="selectedStatus = filter.value"
+          >
+            {{ filter.label }}
+          </wd-button>
+        </view>
+      </scroll-view>
+    </view>
+
     <view v-if="loading" class="empty-state">正在加载任务...</view>
-    <view v-else-if="!tasks.length" class="empty-state">暂无批量任务</view>
+    <view v-else-if="!filteredTasks.length" class="empty-state">暂无批量任务</view>
 
     <view v-else class="task-list">
-      <view v-for="task in tasks" :key="task.batchId" class="task-card">
-        <view class="task-head">
+      <view v-for="task in filteredTasks" :key="task.batchId" class="task-card">
+        <view class="task-head" @click="toggleDetail(task)">
           <view>
             <text class="task-title">{{ task.title }}</text>
-            <text class="task-meta">{{ formatDateTime(task.createdAt) }}</text>
+            <text class="task-meta">{{ formatDateTime(task.createdAt) }}·{{ expandedId === task.batchId ? '收起详情' : '展开详情' }}</text>
           </view>
           <wd-tag :type="statusType(task.status)">{{ statusLabel(task.status) }}</wd-tag>
         </view>
@@ -259,6 +334,18 @@ function statusType(status: BulkTaskStatus) {
           <text>待处理{{ task.pending }}</text>
         </view>
 
+        <view v-if="expandedId === task.batchId" class="detail-list">
+          <text class="detail-title">任务详情</text>
+          <text class="detail-item">批次{{ task.batchId }}</text>
+          <text v-if="task.retryOf" class="detail-item">重试自{{ task.retryOf }}</text>
+          <text class="detail-item">执行时间{{ formatDateTime(task.executeAt) }}</text>
+          <text class="detail-title command-title">子命令</text>
+          <view v-for="command in task.commands" :key="command.id" class="command-row">
+            <text>槽位{{ command.slotNo }}·{{ command.sn }}</text>
+            <wd-tag :type="commandStatusType(command.status)">{{ command.status }}</wd-tag>
+          </view>
+        </view>
+
         <view v-if="task.failedDevices.length" class="failed-list">
           <text class="failed-title">失败板卡</text>
           <text v-for="item in task.failedDevices" :key="item.id" class="failed-item">
@@ -267,8 +354,12 @@ function statusType(status: BulkTaskStatus) {
         </view>
 
         <view class="log-list">
-          <text class="log-title">最近日志</text>
-          <text v-for="log in task.logs.slice(0, 4)" :key="`${log.ts}-${log.commandId || log.message}`" class="log-item">
+          <text class="log-title">{{ expandedId === task.batchId ? '任务日志' : '最近日志' }}</text>
+          <text
+            v-for="log in expandedId === task.batchId ? task.logs : task.logs.slice(0, 4)"
+            :key="`${log.ts}-${log.commandId || log.message}`"
+            class="log-item"
+          >
             {{ formatDateTime(log.ts) }}·{{ log.message }}
           </text>
         </view>
@@ -433,6 +524,33 @@ function statusType(status: BulkTaskStatus) {
   font-size: 24rpx;
 }
 
+.filter-panel {
+  margin-bottom: 12rpx;
+  padding: 18rpx;
+  border: 1rpx solid $uni-border-color;
+  border-radius: 10rpx;
+  background: #ffffff;
+}
+
+.filter-scroll {
+  margin-top: 12rpx;
+  white-space: nowrap;
+}
+
+.filter-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  padding-bottom: 8rpx;
+}
+
+.filter-label {
+  margin-right: 8rpx;
+  color: $uni-text-color-grey;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
 .error {
   color: #b42318;
   background: #fff1f0;
@@ -494,7 +612,8 @@ function statusType(status: BulkTaskStatus) {
 }
 
 .failed-list,
-.log-list {
+.log-list,
+.detail-list {
   margin: 18rpx 0;
   padding: 16rpx;
   border-radius: 8rpx;
@@ -502,11 +621,41 @@ function statusType(status: BulkTaskStatus) {
 }
 
 .failed-title,
-.log-title {
+.log-title,
+.detail-title {
   margin-bottom: 8rpx;
   color: #172033;
   font-size: 26rpx;
   font-weight: 700;
+}
+
+.detail-title,
+.detail-item {
+  display: block;
+}
+
+.command-title {
+  margin-top: 14rpx;
+}
+
+.detail-item {
+  margin-top: 6rpx;
+  color: $uni-text-color-grey;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.command-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 8rpx;
+
+  text {
+    color: #172033;
+    font-size: 24rpx;
+  }
 }
 
 .failed-item,

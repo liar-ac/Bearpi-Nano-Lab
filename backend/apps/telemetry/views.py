@@ -268,7 +268,11 @@ def append_ia1_control_points(device, points):
 def parse_optional_datetime(value):
     if not value:
         return timezone.now()
-    parsed = parse_datetime(str(value))
+    try:
+        parsed = parse_datetime(str(value))
+    except ValueError:
+        # 形如2026-02-30T00:00:00的"格式合法但日期非法"输入会抛ValueError
+        raise ValidationError({"ts": "ISO8601 datetime is required"})
     if parsed is None:
         raise ValidationError({"ts": "ISO8601 datetime is required"})
     if timezone.is_naive(parsed):
@@ -392,7 +396,11 @@ def upsert_alarm(sensor, ts, level, message):
 
 
 def parse_required_datetime(value, field):
-    parsed = parse_datetime(value or "")
+    try:
+        parsed = parse_datetime(value or "")
+    except ValueError:
+        # 形如2026-02-30T00:00:00的"格式合法但日期非法"输入会抛ValueError
+        raise ValidationError({field: "ISO8601 datetime is required"})
     if parsed is None:
         raise ValidationError({field: "ISO8601 datetime is required"})
     if timezone.is_naive(parsed):

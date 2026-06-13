@@ -12,13 +12,31 @@ const sensor = ref<Sensor | null>(null);
 const data = ref<PointsResponse | null>(null);
 const interval = ref<HistoryInterval>('5m');
 const rangeDays = ref(7);
+const customMode = ref(false);
+const customStart = ref(Date.now() - 7 * 24 * 60 * 60_000);
+const customEnd = ref(Date.now());
 const loading = ref(false);
 const error = ref('');
 let searchRequestId = 0;
 
 const points = computed<Point[]>(() => data.value?.points ?? []);
-const chartPoints = computed(() => points.value.slice(-40));
+const chartPoints = computed(() => points.value);
 const maxValue = computed(() => Math.max(...chartPoints.value.map((point) => Math.abs(point.value)), 1));
+
+const thresholdText = computed(() => {
+  const s = sensor.value;
+  if (!s || s.min == null && s.max == null) return '';
+  const unit = s.unit || '';
+  if (s.min != null && s.max != null) return `阈值 ${s.min}~${s.max} ${unit}`;
+  if (s.min != null) return `下限 ${s.min} ${unit}`;
+  return `上限 ${s.max} ${unit}`;
+});
+
+function isPointBreach(point: Point): boolean {
+  const s = sensor.value;
+  if (!s) return false;
+  return (s.min != null && point.value < s.min) || (s.max != null && point.value > s.max);
+}
 
 onLoad(async (query) => {
   const parsedDeviceId = Number(query?.deviceId) || 0;
@@ -51,8 +69,8 @@ async function search() {
   if (!sensorId.value) return;
   const localRequestId = ++searchRequestId;
   loading.value = true;
-  const end = new Date();
-  const start = new Date(Date.now() - rangeDays.value * 24 * 60 * 60_000);
+  const end = customMode.value ? new Date(customEnd.value) : new Date();
+  const start = customMode.value ? new Date(customStart.value) : new Date(Date.now() - rangeDays.value * 24 * 60 * 60_000);
   try {
     error.value = '';
     const response = await fetchHistory(sensorId.value, {
@@ -76,6 +94,13 @@ function setIntervalValue(value: HistoryInterval) {
 
 function setRangeDays(value: number) {
   rangeDays.value = value;
+  customMode.value = false;
+}
+
+function setCustomRange() {
+  customMode.value = true;
+  customEnd.value = Date.now();
+  customStart.value = customEnd.value - rangeDays.value * 24 * 60 * 60_000;
 }
 </script>
 
@@ -90,9 +115,20 @@ function setRangeDays(value: number) {
     <view class="filter-card">
       <view class="filter-title">时间范围</view>
       <view class="control-row">
-        <wd-button size="small" :type="rangeDays === 1 ? 'primary' : 'info'" :plain="rangeDays !== 1" @click="setRangeDays(1)">1 天</wd-button>
-        <wd-button size="small" :type="rangeDays === 7 ? 'primary' : 'info'" :plain="rangeDays !== 7" @click="setRangeDays(7)">7 天</wd-button>
-        <wd-button size="small" :type="rangeDays === 30 ? 'primary' : 'info'" :plain="rangeDays !== 30" @click="setRangeDays(30)">30 天</wd-button>
+        <wd-button size="small" :type="!customMode && rangeDays === 1 ? 'primary' : 'info'" :plain="customMode || rangeDays !== 1" @click="setRangeDays(1)">1 天</wd-button>
+        <wd-button size="small" :type="!customMode && rangeDays === 7 ? 'primary' : 'info'" :plain="customMode || rangeDays !== 7" @click="setRangeDays(7)">7 天</wd-button>
+        <wd-button size="small" :type="!customMode && rangeDays === 30 ? 'primary' : 'info'" :plain="customMode || rangeDays !== 30" @click="setRangeDays(30)">30 天</wd-button>
+        <wd-button size="small" :type="customMode ? 'primary' : 'info'" :plain="!customMode" @click="setCustomRange">自定义</wd-button>
+      </view>
+      <view v-if="customMode" class="custom-range">
+        <view class="range-row">
+          <text class="range-label">开始</text>
+          <wd-datetime-picker v-model="customStart" type="datetime" />
+        </view>
+        <view class="range-row">
+          <text class="range-label">结束</text>
+          <wd-datetime-picker v-model="customEnd" type="datetime" />
+        </view>
       </view>
       <view class="filter-title">聚合粒度</view>
       <view class="control-row">
@@ -109,7 +145,7 @@ function setRangeDays(value: number) {
     <view class="trend-card">
       <view class="section-title">
         <text>{{ loading ? '正在查询...' : `共 ${points.length} 个点位` }}</text>
-        <text>{{ interval }}</text>
+        <text>{{ interval }}{{ thresholdText ? ` · ${thresholdText}` : '' }}</text>
       </view>
       <view v-if="!points.length" class="empty-state">暂无历史数据</view>
       <view v-else class="bar-chart">
@@ -117,15 +153,19 @@ function setRangeDays(value: number) {
           v-for="point in chartPoints"
           :key="point.ts"
           class="bar"
+          :class="{ 'bar-breach': isPointBreach(point) }"
           :style="{ height: `${Math.max(8, Math.round((Math.abs(point.value) / maxValue) * 160))}rpx` }"
         />
       </view>
     </view>
 
     <view class="point-list">
-      <view v-for="point in points.slice(-20).reverse()" :key="point.ts" class="point-row">
+      <view v-for="point in points.slice(-20).reverse()" :key="point.ts" class="point-row" :class="{ 'row-breach': isPointBreach(point) }">
         <text>{{ formatDateTime(point.ts) }}</text>
-        <text>{{ formatValue(point.value, sensor?.unit ?? '') }}</text>
+        <view class="point-value">
+          <text>{{ formatValue(point.value, sensor?.unit ?? '') }}</text>
+          <text v-if="isPointBreach(point)" class="breach-tag">越界</text>
+        </view>
       </view>
     </view>
   </view>
@@ -188,6 +228,33 @@ function setRangeDays(value: number) {
   margin-bottom: 18rpx;
 }
 
+.custom-range {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border: 1rpx solid $uni-border-color;
+  border-radius: 8rpx;
+  background: #f8fafc;
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.range-label {
+  flex-shrink: 0;
+  width: 60rpx;
+  color: #172033;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
 .section-title,
 .point-row {
   display: flex;
@@ -224,6 +291,10 @@ function setRangeDays(value: number) {
   background: linear-gradient(180deg, #38bdf8 0%, #409eff 100%);
 }
 
+.bar-breach {
+  background: linear-gradient(180deg, #f56c6c 0%, #e6a23c 100%) !important;
+}
+
 .point-row {
   padding: 16rpx 0;
   border-bottom: 1rpx solid #f0f2f5;
@@ -233,10 +304,30 @@ function setRangeDays(value: number) {
     color: $uni-text-color-grey;
   }
 
-  text:last-child {
+  &.row-breach {
+    background: #fef0f0;
+  }
+}
+
+.point-value {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+
+  text:first-child {
     color: #172033;
     font-weight: 700;
   }
+}
+
+.breach-tag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  background: #f56c6c;
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: 700;
 }
 
 .empty-state {

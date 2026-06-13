@@ -507,6 +507,21 @@ watch([selectedTrendDeviceId, trendRange], () => {
           </view>
         </view>
 
+        <view v-if="trendPoints.length" class="trend-chart-section">
+          <view class="section-title">
+            <text>趋势曲线</text>
+            <text>{{ trendPoints.length }}个点</text>
+          </view>
+          <view class="bar-chart">
+            <view
+              v-for="point in trendPoints.slice(-40)"
+              :key="point.ts"
+              class="bar"
+              :style="{ height: `${Math.max(8, Math.round((Math.abs(point.value) / Math.max(...trendPoints.slice(-40).map(p => Math.abs(p.value)), 1)) * 160))}rpx` }"
+            />
+          </view>
+        </view>
+
         <view class="trend-range">
           <text>区间最低 {{ formatValue(trendStats.min, 'mW') }}</text>
           <text>区间最高 {{ formatValue(trendStats.peak, 'mW') }}</text>
@@ -792,6 +807,45 @@ watch([selectedTrendDeviceId, trendRange], () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12rpx;
+}
+
+.trend-chart-section {
+  margin-top: 18rpx;
+  padding: 18rpx;
+  border: 1rpx solid $uni-border-color;
+  border-radius: 8rpx;
+  background: #f8fafc;
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+  color: #172033;
+  font-size: 26rpx;
+  font-weight: 700;
+
+  text:last-child {
+    color: $uni-text-color-grey;
+    font-size: 22rpx;
+    font-weight: 400;
+  }
+}
+
+.bar-chart {
+  height: 180rpx;
+  display: flex;
+  align-items: flex-end;
+  gap: 6rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid $uni-border-color;
+}
+
+.bar {
+  flex: 1;
+  min-width: 6rpx;
+  border-radius: 4rpx 4rpx 0 0;
+  background: linear-gradient(180deg, #38bdf8 0%, #409eff 100%);
 }
 
 .trend-range {

@@ -30,7 +30,7 @@ const statusOptions: Array<{ label: string; value: AlarmStatus | '' }> = [
 const levelOptions: Array<{ label: string; value: AlarmLevel | '' }> = [
   { label: '全部级别', value: '' },
   { label: '提示', value: 'info' },
-  { label: '预警', value: 'warning' },
+  { label: '警告', value: 'warning' },
   { label: '严重', value: 'critical' }
 ];
 

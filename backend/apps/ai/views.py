@@ -94,7 +94,7 @@ def build_data_analysis_context(context):
         parts.append("\n## 统计数据")
         parts.append(f"- 数据点数: {stats.get('count', 0)}")
         parts.append(f"- 最小值: {stats.get('min', '?')}")
-        parts.append(f"- 最大值: {stats.get('max', '?')}")
+        parts.append(f"- 最大值: {stats.get('peak', stats.get('max', '?'))}")
         parts.append(f"- 平均值: {stats.get('average', '?')}")
         parts.append(f"- 累计电量: {stats.get('energy', '?')}Wh")
     if points:
@@ -701,6 +701,16 @@ class AiCommandParseView(APIView):
                 parsed = {"detected": False, "explanation": "无法解析指令"}
         except (json.JSONDecodeError, ValueError):
             parsed = {"detected": False, "explanation": "AI返回格式异常"}
+
+        # Validate actuator/mode enums before passing through (clients default
+        # unknown actuators to light, so out-of-set values must not leak)
+        if parsed.get("detected"):
+            actuator = str(parsed.get("actuator", "")).strip().lower()
+            mode = str(parsed.get("mode", "")).strip().lower()
+            if actuator not in ("motor", "light") or mode not in ("on", "off", "auto"):
+                return Response({"detected": False, "explanation": "未识别到有效的执行器或模式,请明确指定电机/补光灯及打开/关闭/自动"})
+            parsed["actuator"] = actuator
+            parsed["mode"] = mode
 
         # Validate device exists if detected
         if parsed.get("detected") and parsed.get("device_sn"):

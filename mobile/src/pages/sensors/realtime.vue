@@ -22,6 +22,21 @@ let alive = true;
 const chartPoints = computed(() => points.value.slice(-36));
 const maxValue = computed(() => Math.max(...chartPoints.value.map((point) => Math.abs(point.value)), 1));
 
+const thresholdText = computed(() => {
+  const s = sensor.value;
+  if (!s || s.min == null && s.max == null) return '';
+  const unit = s.unit || '';
+  if (s.min != null && s.max != null) return `阈值 ${s.min}~${s.max} ${unit}`;
+  if (s.min != null) return `下限 ${s.min} ${unit}`;
+  return `上限 ${s.max} ${unit}`;
+});
+const isBreach = computed(() => {
+  const s = sensor.value;
+  const v = s?.latest?.value;
+  if (v == null || !s) return false;
+  return (s.min != null && v < s.min) || (s.max != null && v > s.max);
+});
+
 onLoad(async (query) => {
   const parsedDeviceId = Number(query?.deviceId) || 0;
   const parsedSensorId = Number(query?.sensorId) || 0;
@@ -112,9 +127,11 @@ function setRefreshMs(value: number) {
         </view>
       </view>
 
-      <view class="value-card">
+      <view class="value-card" :class="{ breach: isBreach }">
         <text>当前值</text>
         <text>{{ formatValue(sensor.latest?.value, sensor.unit) }}</text>
+        <text v-if="isBreach" class="breach-tag">越界</text>
+        <text v-if="thresholdText" class="threshold-text">{{ thresholdText }}</text>
         <text>{{ formatDateTime(sensor.latest?.ts) }}</text>
       </view>
 
@@ -136,6 +153,7 @@ function setRefreshMs(value: number) {
             v-for="point in chartPoints"
             :key="point.ts"
             class="bar"
+            :class="{ 'bar-breach': sensor && ((sensor.min != null && point.value < sensor.min) || (sensor.max != null && point.value > sensor.max)) }"
             :style="{ height: `${Math.max(8, Math.round((Math.abs(point.value) / maxValue) * 160))}rpx` }"
           />
         </view>
@@ -215,6 +233,31 @@ function setRefreshMs(value: number) {
     font-size: 54rpx;
     font-weight: 800;
   }
+
+  &.breach {
+    border-color: #f56c6c;
+    background: #fef0f0;
+  }
+
+  &.breach text:nth-child(2) {
+    color: #b42318;
+  }
+}
+
+.breach-tag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  background: #f56c6c;
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 700;
+  align-self: flex-start;
+}
+
+.threshold-text {
+  color: $uni-text-color-grey;
+  font-size: 22rpx;
 }
 
 .control-row {
@@ -258,6 +301,10 @@ function setRefreshMs(value: number) {
   min-width: 6rpx;
   border-radius: 4rpx 4rpx 0 0;
   background: linear-gradient(180deg, #2dd47d 0%, #409eff 100%);
+}
+
+.bar-breach {
+  background: linear-gradient(180deg, #f56c6c 0%, #e6a23c 100%) !important;
 }
 
 .point-row {

@@ -451,7 +451,17 @@ function useExample(q: string) {
   nextTick(() => send());
 }
 function open() { visible.value = true; nextTick(() => textareaRef.value?.focus()); }
-function clear() { if (currentSession.value) { if (generating.value) stop(); currentSession.value.messages = []; queue.value = []; save(); } }
+async function clear() {
+  if (!currentSession.value) return;
+  try {
+    await ElMessageBox.confirm('确定清空当前对话？', '清空对话', { type: 'warning', confirmButtonText: '清空', cancelButtonText: '取消' });
+  } catch { return; }
+  if (!currentSession.value) return;
+  if (generating.value) stop();
+  currentSession.value.messages = [];
+  queue.value = [];
+  save();
+}
 function fmtTime(ts: number) { const d = new Date(ts); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
 function autoH() { const el = textareaRef.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; } }
 

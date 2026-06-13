@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { BatteryCharging, Cpu, Eye, Gauge, PlugZap, RefreshCcw, Search, Sparkles, Zap } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import TrendChart from '@/components/LineChart.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { fetchDevices, fetchHistory, sendAiChat } from '@/api/lab';
-import type { Device, HistoryInterval, Point, Sensor } from '@/types/domain';
+import { subscribeRealtime } from '@/api/realtime';
+import type { Device, HistoryInterval, Point, RealtimeMessage, Sensor } from '@/types/domain';
 import { formatDateTime, formatValue, relativeTime } from '@/utils/format';
 
 type PowerRange = '5m' | '1h' | '1d';
@@ -23,6 +24,9 @@ const trendRange = ref<PowerRange>('1h');
 const trendLoading = ref(false);
 const trendError = ref('');
 const trendPoints = ref<Point[]>([]);
+let unsubscribe: (() => void) | null = null;
+let refreshTimer: number | null = null;
+let loadSeq = 0;
 
 const boardPowerCodes = new Set(['voltage', 'current', 'power']);
 const modulePowerCodes = new Set(['power_mcu', 'power_wifi', 'power_sensor', 'power_motor', 'power_light']);
@@ -232,15 +236,19 @@ const trendCards = computed(() => [
 ]);
 
 async function load() {
+  const seq = ++loadSeq;
   loading.value = true;
   error.value = '';
   try {
-    devices.value = (await fetchDevices({ includeInactive: true })).results;
+    const response = await fetchDevices({ includeInactive: true });
+    if (seq !== loadSeq) return;
+    devices.value = response.results;
     ensureTrendDevice();
   } catch (cause) {
+    if (seq !== loadSeq) return;
     error.value = cause instanceof Error ? cause.message : '功耗数据加载失败';
   } finally {
-    loading.value = false;
+    if (seq === loadSeq) loading.value = false;
   }
 }
 
@@ -382,11 +390,42 @@ function computeEnergyWh(points: Point[], durationMs: number, fallbackPower: num
   return energyWh;
 }
 
+function applyRealtime(message: RealtimeMessage) {
+  devices.value = devices.value.map((device) => {
+    if (device.id !== message.deviceId) return device;
+    return {
+      ...device,
+      status: message.status ?? device.status,
+      lastSeen: message.ts,
+      sensors: device.sensors.map((sensor) =>
+        sensor.id === message.sensorId ? { ...sensor, latest: { ts: message.ts, value: message.value } } : sensor
+      )
+    };
+  });
+}
+
 watch([selectedTrendDeviceId, trendRange], () => {
   void loadPowerTrend();
 });
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  unsubscribe = subscribeRealtime(applyRealtime);
+  refreshTimer = window.setInterval(() => {
+    void load();
+  }, 10_000);
+});
+
+onBeforeUnmount(() => {
+  if (unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+  }
+  if (refreshTimer !== null) {
+    window.clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+});
 </script>
 
 <template>

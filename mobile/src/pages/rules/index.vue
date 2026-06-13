@@ -199,6 +199,7 @@ function ruleRange(rule: RuleConfig) {
           <view>
             <text class="rule-device">{{ rule.deviceName }}</text>
             <text class="rule-meta">槽位 {{ rule.slotNo }} / 采样 {{ rule.sampleRate }}s</text>
+            <text class="rule-meta">{{ rule.code }} / {{ rule.description }}</text>
           </view>
           <wd-tag type="primary">{{ rule.name }}</wd-tag>
         </view>
@@ -220,7 +221,7 @@ function ruleRange(rule: RuleConfig) {
       </view>
     </view>
 
-    <view class="notice info">保存后，后续遥测进入后端时会按新的 min/max 判定告警；设备端无需重新登录。</view>
+    <view class="notice info">保存后，后续遥测进入后端时会按新的 min/max 判定告警；设备端无需重新烧录。</view>
   </view>
 </template>
 

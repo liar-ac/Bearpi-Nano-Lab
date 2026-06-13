@@ -12,6 +12,7 @@ export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data?: unknown;
   header?: Record<string, string>;
+  timeout?: number;
 }
 
 const TOKEN_KEY = 'access_token';
@@ -49,7 +50,7 @@ function rawRequest<T>(path: string, options: RequestOptions, token: string | nu
       method: (options.method ?? 'GET') as UniNamespace.RequestOptions['method'],
       data: options.data as Record<string, unknown> | string | undefined,
       header,
-      timeout: 15000,
+      timeout: options.timeout ?? 15000,
       success: (res) => {
         if (settled) return;
         settled = true;

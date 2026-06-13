@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
+import { onHide, onLoad, onPullDownRefresh, onShow, onUnload } from '@dcloudio/uni-app';
 import { fetchCommands, fetchDevice, sendCommand } from '@/api/lab';
 import { useAuthStore } from '@/stores/auth';
 import type { CommandPayload, CommandResult, Device, Sensor } from '@/types/domain';
@@ -15,6 +15,7 @@ const commandLoading = ref(false);
 const error = ref('');
 const motorMode = ref<'auto' | 'on' | 'off'>('auto');
 const lightMode = ref<'auto' | 'on' | 'off'>('auto');
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const actuatorCodes = ['motor', 'fan', 'ventilation', 'lamp', 'led', 'fill_light'];
 const sensorRows = computed(() => device.value?.sensors ?? []);
@@ -34,6 +35,28 @@ onLoad((query) => {
   deviceId.value = id;
   void load();
 });
+
+onShow(() => {
+  if (!deviceId.value || refreshTimer) return;
+  refreshTimer = setInterval(() => {
+    void load();
+  }, 10000);
+});
+
+onHide(() => {
+  stopRefresh();
+});
+
+onUnload(() => {
+  stopRefresh();
+});
+
+function stopRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+}
 
 onPullDownRefresh(async () => {
   await load();
@@ -312,10 +335,11 @@ function commandText(command: CommandResult) {
         </view>
         <view v-if="!commandLogs.length" class="empty-state">暂无指令记录</view>
         <view v-else class="command-list">
-          <view v-for="command in commandLogs.slice(0, 8)" :key="command.id" class="command-row">
+          <view v-for="command in commandLogs" :key="command.id" class="command-row">
             <view>
               <text class="sensor-name">{{ commandText(command) }}</text>
               <text class="sensor-code">{{ command.message }}</text>
+              <text class="sensor-code">{{ formatDateTime(command.createdAt) }}{{ command.ackAt ? ` / ACK ${formatDateTime(command.ackAt)}` : '' }}</text>
             </view>
             <wd-tag :type="command.status === 'failed' ? 'danger' : command.status === 'queued' ? 'warning' : 'success'">
               {{ command.status }}

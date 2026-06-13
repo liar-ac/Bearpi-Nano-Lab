@@ -210,7 +210,8 @@ export function sendAiChat(feature: string, context: Record<string, unknown>, si
   if (USE_MOCK) return mockSendAiChat(feature, context, signal);
   return request<{ reply: string; feature: string; data_source?: string }>('/ai/chat', {
     method: 'POST',
-    data: { feature, context }
+    data: { feature, context },
+    timeout: 35000
   }, signal);
 }
 
@@ -218,7 +219,8 @@ export function sendAiQuery(question: string, history?: Array<{ role: string; co
   if (USE_MOCK) return mockSendAiQuery(question, history, signal);
   return request<{ reply: string; question: string; data_source?: string; diagnostic?: Record<string, unknown> }>('/ai/query', {
     method: 'POST',
-    data: { question, history }
+    data: { question, history },
+    timeout: 35000
   }, signal);
 }
 
@@ -238,6 +240,7 @@ export function parseAiCommand(text: string, signal?: AbortSignal | null) {
   if (USE_MOCK) return mockParseAiCommand(text, signal);
   return request<AiCommandResult>('/ai/command', {
     method: 'POST',
-    data: { text }
+    data: { text },
+    timeout: 35000
   }, signal);
 }

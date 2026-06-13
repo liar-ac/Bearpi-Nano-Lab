@@ -421,15 +421,26 @@ static int ConnectTcpToHost(const char *host)
 
 static int ConnectTcp(void)
 {
-    int sock = ConnectTcpToHost(BEARPI_SERVER_HOST);
+    /* Sticky host: try the last-known-good host first so a dead primary is not
+       re-probed (paying its connect timeout) on every report cycle */
+    int sock = ConnectTcpToHost(g_activeServerHost);
     if (sock >= 0) {
-        g_activeServerHost = BEARPI_SERVER_HOST;
         return sock;
+    }
+
+    if (strcmp(g_activeServerHost, BEARPI_SERVER_HOST) != 0) {
+        printf("[bearpi-lab] trying primary server %s:%d\r\n", BEARPI_SERVER_HOST, BEARPI_SERVER_PORT);
+        sock = ConnectTcpToHost(BEARPI_SERVER_HOST);
+        if (sock >= 0) {
+            g_activeServerHost = BEARPI_SERVER_HOST;
+            return sock;
+        }
     }
 
     /* Auto-detected gateway IP (most lab/home networks run server on gateway) */
     const char *gwIp = GetGatewayIp();
     if (gwIp != NULL &&
+        strcmp(gwIp, g_activeServerHost) != 0 &&
         strcmp(gwIp, BEARPI_SERVER_HOST) != 0) {
         printf("[bearpi-lab] trying gateway %s:%d\r\n", gwIp, BEARPI_SERVER_PORT);
         sock = ConnectTcpToHost(gwIp);
@@ -440,6 +451,7 @@ static int ConnectTcp(void)
     }
 
     if (strlen(BEARPI_SERVER_HOST_FALLBACK) > 0 &&
+        strcmp(BEARPI_SERVER_HOST_FALLBACK, g_activeServerHost) != 0 &&
         strcmp(BEARPI_SERVER_HOST_FALLBACK, BEARPI_SERVER_HOST) != 0 &&
         (gwIp == NULL || strcmp(BEARPI_SERVER_HOST_FALLBACK, gwIp) != 0)) {
         printf("[bearpi-lab] trying fallback server %s:%d\r\n", BEARPI_SERVER_HOST_FALLBACK, BEARPI_SERVER_PORT);

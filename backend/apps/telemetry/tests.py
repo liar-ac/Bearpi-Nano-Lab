@@ -4,10 +4,11 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.cloud.models import CloudDeviceStatus
 from apps.devices.models import Device, Sensor
@@ -15,6 +16,7 @@ from apps.telemetry.models import RawPoint
 from apps.telemetry.views import (
     EXECUTOR_SENSOR_CODES,
     MAX_HISTORY_RANGE,
+    SensorHistoryView,
     TelemetryIngestView,
     parse_required_datetime,
     record_threshold_alarm,
@@ -50,6 +52,28 @@ class HistoryRangeCapTests(TestCase):
     def test_required_datetime_makes_naive_value_aware(self):
         parsed = parse_required_datetime("2026-05-17T10:00:00", "start")
         self.assertTrue(timezone.is_aware(parsed))
+
+
+class HistoryInvalidCalendarDateTests(TestCase):
+    """覆盖修复：格式合法但日期非法（如2月30日）的start/end返回400而非500"""
+
+    def test_invalid_calendar_date_raises_validation_error(self):
+        with self.assertRaises(ValidationError):
+            parse_required_datetime("2026-02-30T00:00:00", "start")
+
+    def test_history_endpoint_invalid_calendar_date_returns_400(self):
+        device = _make_device(9)
+        sensor = Sensor.objects.create(
+            device=device, code="temp", name="温度", unit="℃", min_value=18, max_value=32
+        )
+        user = User.objects.create_user(username="history-tester", password="x")
+        request = APIRequestFactory().get(
+            f"/api/v1/sensors/{sensor.id}/history",
+            {"start": "2026-02-30T00:00:00", "end": "2026-03-01T00:00:00"},
+        )
+        force_authenticate(request, user=user)
+        response = SensorHistoryView.as_view()(request, sensor_id=sensor.id)
+        self.assertEqual(response.status_code, 400)
 
 
 class ThresholdAlarmExecutorTests(TestCase):

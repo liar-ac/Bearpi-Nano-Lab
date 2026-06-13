@@ -14,7 +14,7 @@ import {
   Siren,
   Wifi
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AiQuery from '@/components/AiQuery.vue';
 import BoardGrid from '@/components/BoardGrid.vue';
@@ -68,12 +68,25 @@ const controllableDevices = computed(() =>
   store.devices.filter((device) => device.status === 'online' || device.status === 'warning')
 );
 
+function refreshDevices() {
+  // 保持status:'all'让指标卡覆盖全量设备；离线筛选时带include_inactive才能查到长期离线设备
+  // （维护设备后端列表始终返回，无需include_inactive）
+  return store.loadDevices({ status: 'all', includeInactive: store.selectedStatus === 'offline' });
+}
+
 onMounted(async () => {
   refreshTimer = window.setInterval(() => {
-    void store.loadDevices({ status: 'all' });
+    void refreshDevices();
   }, 10_000);
-  await store.loadDevices({ status: 'all' });
+  await refreshDevices();
 });
+
+watch(
+  () => store.selectedStatus,
+  () => {
+    void refreshDevices();
+  }
+);
 
 onBeforeUnmount(() => {
   if (refreshTimer !== null) {
