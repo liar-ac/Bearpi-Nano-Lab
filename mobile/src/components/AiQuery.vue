@@ -212,7 +212,8 @@ function scrollDown(force = false) {
 function onScroll(e: { detail: { scrollTop: number; scrollHeight: number } }) {
   scrollTopVal.value = e.detail.scrollTop;
   scrollHeightVal.value = e.detail.scrollHeight;
-  showScrollBtn.value = !isNearBottom();
+  wasNearBottom = isNearBottom();
+  showScrollBtn.value = !wasNearBottom;
 }
 
 function scrollToBottom() {

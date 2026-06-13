@@ -267,7 +267,10 @@ function send() {
   const idx = currentSession.value.messages.length;
   currentSession.value.messages.push({ id: nextId(), role: 'user', content: q, ts: Date.now(), status: 'done' });
   autoTitle(currentSession.value); save(); input.value = ''; scrollDown(true);
-  if (looksCmd(q)) void detectCmd(idx); else ask(q);
+  if (looksCmd(q)) {
+    generating.value = true; aiStatus.value = 'connecting';
+    void detectCmd(idx).finally(() => { if (!abortController.value) { generating.value = false; aiStatus.value = 'idle'; } processQueue(); });
+  } else ask(q);
 }
 
 // ── AI ────────────────────────────────────────────────────────
