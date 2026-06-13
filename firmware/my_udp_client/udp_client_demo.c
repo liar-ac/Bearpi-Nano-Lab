@@ -51,8 +51,8 @@ static void UDPClientTask(void)
     //创建socket
     if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
-        perror("create socket failed!\r\n");
-        exit(1);
+        printf("create socket failed!\r\n");
+        return;
     }
 
     //初始化预连接的服务端地址
