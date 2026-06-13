@@ -131,10 +131,12 @@ int WifiConnect(const char *ssid, const char *psk)
     printf("********************\r\n");
     
     //连接指定的WiFi热点
+    int ssidFound = 0;
     for(uint8_t i = 0; i < ssid_count; i++)
     {
         if (strcmp(ssid, info[i].ssid) == 0)
         {
+            ssidFound = 1;
             int result;
 
             printf("Select:%3d wireless, Waiting...\r\n", i+1);

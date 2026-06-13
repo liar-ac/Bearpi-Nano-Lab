@@ -424,7 +424,10 @@ function stop() {
     last.content = (last.content || '') + '\n\n*[已停止]*';
     last.status = 'done';
   }
-  currentSession.value.messages.forEach((m) => { if (m.status === 'queued') m.status = 'done'; });
+  currentSession.value.messages.forEach((m) => {
+    if (m.status === 'queued') m.status = 'done';
+    if (m.commandStatus === 'confirming') { m.commandStatus = 'rejected'; m.content = '已取消'; }
+  });
   queue.value = [];
   save();
 }

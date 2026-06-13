@@ -143,6 +143,7 @@ static BOOL WifiAPTask(void)
 	if (bind(sock_fd, (struct sockaddr *)&server_sock, sizeof(struct sockaddr)) == -1)
 	{
 		perror("bind is error.\r\n");
+		closesocket(sock_fd);
 		return -1;
 	}
 
