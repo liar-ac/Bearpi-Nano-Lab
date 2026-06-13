@@ -46,8 +46,8 @@ static void TCPServerTask(void)
 	//创建socket
 	if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{
-		perror("socket is error\r\n");
-		exit(1);
+		printf("socket creation failed\r\n");
+		return;
 	}
 
 	bzero(&server_sock, sizeof(server_sock));
@@ -58,15 +58,17 @@ static void TCPServerTask(void)
 	//调用bind函数绑定socket和地址
 	if (bind(sock_fd, (struct sockaddr *)&server_sock, sizeof(struct sockaddr)) == -1)
 	{
-		perror("bind is error\r\n");
-		exit(1);
+		printf("bind failed\r\n");
+		closesocket(sock_fd);
+		return;
 	}
 
 	//调用listen函数监听(指定port监听)
 	if (listen(sock_fd, TCP_BACKLOG) == -1)
 	{
-		perror("listen is error\r\n");
-		exit(1);
+		printf("listen failed\r\n");
+		closesocket(sock_fd);
+		return;
 	}
 
 	printf("start accept\n");

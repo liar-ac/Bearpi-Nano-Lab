@@ -69,9 +69,8 @@ const controllableDevices = computed(() =>
 );
 
 function refreshDevices() {
-  // 保持status:'all'让指标卡覆盖全量设备；离线筛选时带include_inactive才能查到长期离线设备
-  // （维护设备后端列表始终返回，无需include_inactive）
-  return store.loadDevices({ status: 'all', includeInactive: store.selectedStatus === 'offline' });
+  // 保持status:'all'让指标卡覆盖全量设备；始终带include_inactive确保指标卡覆盖全量设备
+  return store.loadDevices({ status: 'all', includeInactive: true });
 }
 
 onMounted(async () => {
