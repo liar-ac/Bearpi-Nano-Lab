@@ -264,6 +264,7 @@ export function reconnectRealtime() {
     socket = null;
   }
   reconnecting = false;
+  authRefreshAttempts = 0;
   realtimeState.attempts = 0;
   realtimeState.status = 'idle';
   realtimeState.error = '';

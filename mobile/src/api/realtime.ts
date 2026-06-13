@@ -173,7 +173,7 @@ function connectWebSocket() {
             realtimeState.status = 'idle';
             realtimeState.error = '';
           } else if (newToken) {
-            realtimeState.attempts = 0;
+            realtimeState.attempts = 1;
             connectWebSocket();
           } else {
             realtimeState.status = 'auth_failed';

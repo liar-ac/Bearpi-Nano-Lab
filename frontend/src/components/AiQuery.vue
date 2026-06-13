@@ -40,7 +40,7 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const chatBody = ref<HTMLDivElement | null>(null);
 const sessions = ref<ChatSession[]>([]);
 const currentSessionId = ref('');
-const queue = ref<string[]>([]);
+const queue = ref<Array<{ sessionId: string; question: string }>>([]);
 const generating = ref(false);
 const abortController = ref<AbortController | null>(null);
 const aiStatus = ref<'idle' | 'connecting' | 'thinking' | 'replying'>('idle');
@@ -260,7 +260,7 @@ function send() {
   if (!q || !currentSession.value) return;
   snapshotScroll();
   if (generating.value) {
-    queue.value.push(q);
+    queue.value.push({ sessionId: currentSession.value.id, question: q });
     currentSession.value.messages.push({ id: nextId(), role: 'user', content: q, ts: Date.now(), status: 'queued' });
     input.value = ''; scrollDown(true); return;
   }
@@ -295,14 +295,16 @@ async function ask(question: string) {
 }
 
 async function processQueue() {
-  if (generating.value || !queue.value.length || !currentSession.value) return;
-  const n = queue.value.shift()!;
-  const qm = currentSession.value.messages.find((m) => m.status === 'queued');
+  if (generating.value || !queue.value.length) return;
+  const entry = queue.value.shift()!;
+  const session = sessions.value.find((s) => s.id === entry.sessionId);
+  if (!session || currentSession.value?.id !== entry.sessionId) return;
+  const qm = session.messages.find((m) => m.status === 'queued');
   if (qm) qm.status = 'done';
   await nextTick();
-  const qi = qm ? currentSession.value.messages.indexOf(qm) : -1;
-  if (looksCmd(n) && qi >= 0) void detectCmd(qi);
-  else ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ });
+  const qi = qm ? session.messages.indexOf(qm) : -1;
+  if (looksCmd(entry.question) && qi >= 0) void detectCmd(qi);
+  else ask(entry.question).catch(() => { /* swallowed: ask() already handles errors internally */ });
 }
 
 // ── Command ───────────────────────────────────────────────────
@@ -425,14 +427,14 @@ function regen(idx: number) {
   const q = currentSession.value.messages[qi].content;
   snapshotScroll();
   currentSession.value.messages.splice(idx, 1);
-  if (!generating.value) ask(q); else queue.value.push(q);
+  if (!generating.value) ask(q); else if (currentSession.value) queue.value.push({ sessionId: currentSession.value.id, question: q });
 }
 
 function editStart(i: number) { if (currentSession.value) currentSession.value.messages[i].editing = true; }
 function editOk(i: number, v: string) {
   if (!currentSession.value) return; const m = currentSession.value.messages[i]; if (!m) return;
   m.content = v; m.editing = false; currentSession.value.messages.splice(i + 1);
-  if (!generating.value) ask(v); else queue.value.push(v);
+  if (!generating.value) ask(v); else if (currentSession.value) queue.value.push({ sessionId: currentSession.value.id, question: v });
 }
 function editCancel(i: number) { if (currentSession.value) currentSession.value.messages[i].editing = false; }
 
@@ -453,7 +455,7 @@ function copy(t: string) {
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => finish(true)).catch(() => finish(fallbackCopy(t)));
   else finish(fallbackCopy(t));
 }
-function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
+function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) { m.reaction = m.reaction === r ? null : r; save(); } } }
 
 function useExample(q: string) {
   input.value = q;
