@@ -79,6 +79,8 @@ begin:
 	rc = MQTTSubscribe(&client, "substopic", 2, messageArrived);
 	if (rc != 0) {
 		printf("MQTTSubscribe: %d\n", rc);
+		NetworkDisconnect(&network);
+		MQTTDisconnect(&client);
 		osDelay(200);
 		goto begin;
 	}

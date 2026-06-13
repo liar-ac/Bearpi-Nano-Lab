@@ -59,6 +59,8 @@ static BOOL WifiSTATask(void)
     static struct netif *g_lwip_netif = NULL;
     WifiDeviceConfig select_ap_config = {0};
 
+    g_ConnectSuccess = 0;
+
     osDelay(200);
     printf("<--System Init-->\r\n");
 
@@ -238,7 +240,7 @@ static void OnWifiScanStateChangedHandler(int state, int size)
     (void)state;
     if (size > 0)
     {
-        ssid_count = size;
+        ssid_count = size < WIFI_SCAN_HOTSPOT_LIMIT ? size : WIFI_SCAN_HOTSPOT_LIMIT;
         g_staScanSuccess = 1;
     }
     return;
