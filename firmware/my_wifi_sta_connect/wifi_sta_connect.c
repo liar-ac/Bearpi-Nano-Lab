@@ -40,9 +40,9 @@ static void OnHotspotStaJoinHandler(StationInfo *info);
 static void OnHotspotStateChangedHandler(int state);
 static void OnHotspotStaLeaveHandler(StationInfo *info);
 
-static int g_staScanSuccess = 0;
-static int g_ConnectSuccess = 0;
-static int ssid_count = 0;
+static volatile int g_staScanSuccess = 0;
+static volatile int g_ConnectSuccess = 0;
+static volatile int ssid_count = 0;
 WifiEvent g_wifiEventHandler = {0};
 WifiErrorCode error;
 
@@ -148,17 +148,21 @@ static BOOL WifiSTATask(void)
         if(i == ssid_count-1)
         {
             printf("ERROR: No wifi as expected\r\n");
-            while(1) osDelay(100);
+            free(info);
+            return -1;
         }
     }
 
     //启动DHCP
-    if (g_lwip_netif)
+    if (g_lwip_netif == NULL)
     {
-        dhcp_start(g_lwip_netif);
-        printf("begain to dhcp");
+        printf("ERROR: netif not found, cannot start DHCP\r\n");
+        free(info);
+        return -1;
     }
 
+    dhcp_start(g_lwip_netif);
+    printf("begain to dhcp");
 
     //等待DHCP
     int dhcpTimeout = 300; /* 300 * 100ms = 30 seconds */
@@ -182,8 +186,11 @@ static BOOL WifiSTATask(void)
         printf("<-- DHCP state:TIMEOUT -->\r\n");
         dhcp_stop(g_lwip_netif);
         g_lwip_netif = NULL;
+        free(info);
         return -1;
     }
+
+    free(info);
 
     //执行其他操作
     for(;;)

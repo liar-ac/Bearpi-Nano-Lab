@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import MarkdownMessage from '@/components/MarkdownMessage.vue';
 import { sendAiChat } from '@/api/lab';
 
@@ -41,7 +41,7 @@ async function analyze() {
     reply.value = result.reply;
     dataSource.value = result.data_source ?? '';
   } catch (cause) {
-    if (cause instanceof Error && cause.name === 'AbortError') return;
+    if (abortController.value?.signal.aborted) return;
     error.value = cause instanceof Error ? cause.message : 'AI分析请求失败';
     uni.showToast({ title: error.value, icon: 'none' });
   } finally {
@@ -53,6 +53,10 @@ async function analyze() {
 function cancel() {
   abortController.value?.abort();
 }
+
+onBeforeUnmount(() => {
+  abortController.value?.abort();
+});
 
 function close() {
   if (loading.value) return;

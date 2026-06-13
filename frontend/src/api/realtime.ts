@@ -4,6 +4,9 @@ import { refreshAccessToken } from '@/api/http';
 import { nextRealtimeMessage } from '@/api/mock';
 import type { RealtimeAlarmEvent, RealtimeMessage } from '@/types/domain';
 
+let authRefreshAttempts = 0;
+const MAX_AUTH_REFRESH_ATTEMPTS = 3;
+
 export type RealtimeStatus =
   | 'idle'
   | 'mock'
@@ -117,6 +120,7 @@ function connectWebSocket() {
     if (gen !== connectGeneration || socket !== currentSocket) return;
     realtimeState.status = 'online';
     realtimeState.attempts = 0;
+    authRefreshAttempts = 0;
     realtimeState.error = '';
   };
 
@@ -147,9 +151,10 @@ function connectWebSocket() {
     }
 
     if (event.code === 4401 || event.code === 1008) {
-      if (realtimeState.attempts === 0) {
+      if (authRefreshAttempts < MAX_AUTH_REFRESH_ATTEMPTS) {
+        authRefreshAttempts++;
         realtimeState.status = 'reconnecting';
-        realtimeState.error = 'Token过期，尝试刷新后重连...';
+        realtimeState.error = `Token过期，尝试刷新后重连(${authRefreshAttempts}/${MAX_AUTH_REFRESH_ATTEMPTS})...`;
         reconnecting = true;
         refreshAccessToken().then((newToken) => {
           reconnecting = false;
