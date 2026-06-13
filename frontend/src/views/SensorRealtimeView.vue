@@ -90,28 +90,31 @@ async function simulatePoint() {
   }
 }
 
-onMounted(async () => {
+let subGen = 0;
+
+async function resubscribe() {
+  const gen = ++subGen;
+  unsubscribe?.();
+  unsubscribe = null;
   await load();
-  if (cancelled) return;
+  if (cancelled || gen !== subGen) return;
   unsubscribe = subscribeRealtime((message) => {
     appendRealtimePoint(message);
   });
+}
+
+onMounted(async () => {
+  await resubscribe();
 });
 
 watch([deviceId, sensorId], async () => {
-  unsubscribe?.();
-  unsubscribe = null;
   points.value = [];
-  await load();
-  if (!cancelled) {
-    unsubscribe = subscribeRealtime((message) => {
-      appendRealtimePoint(message);
-    });
-  }
+  await resubscribe();
 });
 
 onBeforeUnmount(() => {
   cancelled = true;
+  subGen += 1;
   unsubscribe?.();
 });
 </script>

@@ -14,6 +14,9 @@ import {
   mockLogin,
   mockRegister,
   mockSimulateRealtime,
+  mockSendAiChat,
+  mockSendAiQuery,
+  mockParseAiCommand,
   mockSendBulkCommand,
   mockRetryBulkTask,
   mockSendCommand,
@@ -199,6 +202,7 @@ export function updateRule(sensorId: number, payload: { min?: number | null; max
 }
 
 export function sendAiChat(feature: string, context: Record<string, unknown>, signal?: AbortSignal | null) {
+  if (USE_MOCK) return mockSendAiChat(feature);
   return request<{ reply: string; feature: string; data_source?: string }>('/ai/chat', {
     method: 'POST',
     body: JSON.stringify({ feature, context })
@@ -206,6 +210,7 @@ export function sendAiChat(feature: string, context: Record<string, unknown>, si
 }
 
 export function sendAiQuery(question: string, history?: Array<{ role: string; content: string }>, signal?: AbortSignal | null) {
+  if (USE_MOCK) return mockSendAiQuery(question);
   return request<{ reply: string; question: string; data_source?: string; diagnostic?: Record<string, unknown> }>('/ai/query', {
     method: 'POST',
     body: JSON.stringify({ question, history })
@@ -224,7 +229,8 @@ export interface AiCommandResult {
   explanation?: string;
 }
 
-export function parseAiCommand(text: string) {
+export function parseAiCommand(text: string): Promise<AiCommandResult> {
+  if (USE_MOCK) return mockParseAiCommand();
   return request<AiCommandResult>('/ai/command', {
     method: 'POST',
     body: JSON.stringify({ text })

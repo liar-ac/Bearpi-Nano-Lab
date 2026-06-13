@@ -49,6 +49,7 @@ WifiEvent g_wifiEventHandler = {0};
 WifiErrorCode error;
 static struct netif *g_lwip_netif = NULL;
 static char g_gatewayIp[20] = {0};
+static int g_netId = -1;
 
 const char *GetGatewayIp(void)
 {
@@ -82,6 +83,11 @@ int WifiConnect(const char *ssid, const char *psk)
     if (g_lwip_netif != NULL) {
         dhcp_stop(g_lwip_netif);
         g_lwip_netif = NULL;
+    }
+
+    if (g_netId >= 0) {
+        RemoveDevice(g_netId);
+        g_netId = -1;
     }
 
     //初始化WIFI
@@ -129,6 +135,15 @@ int WifiConnect(const char *ssid, const char *psk)
 
         //获取扫描列表
         error = GetScanInfoList(info, &size);
+        if (error != WIFI_SUCCESS)
+        {
+            printf("GetScanInfoList failed, error = %d\r\n", error);
+            g_staScanSuccess = 0;
+        }
+        else
+        {
+            ssid_count = size;
+        }
 
         scanRetries--;
     }while(g_staScanSuccess != 1 && scanRetries > 0);
@@ -169,6 +184,7 @@ int WifiConnect(const char *ssid, const char *psk)
 
             if (AddDeviceConfig(&select_ap_config, &result) == WIFI_SUCCESS)
             {
+                g_netId = result;
                 g_ConnectSuccess = 0;
                 if (ConnectTo(result) == WIFI_SUCCESS && WaitConnectResult() == 1)
                 {

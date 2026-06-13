@@ -19,7 +19,7 @@ const data = ref<PointsResponse | null>(null);
 const interval = ref<HistoryInterval>('5m');
 const loading = ref(false);
 const error = ref('');
-const range = ref<[Date, Date]>([new Date(Date.now() - 7 * 24 * 60 * 60_000), new Date()]);
+const range = ref<[Date, Date] | null>([new Date(Date.now() - 7 * 24 * 60 * 60_000), new Date()]);
 
 const chartThresholds = computed(() => {
   const thresholds = [];
@@ -42,16 +42,22 @@ const alarmPoints = computed(() =>
     .map((point) => ({ ts: point.ts, value: point.value, label: '阈值越界' }))
 );
 
-async function loadMeta() {
+async function loadMeta(): Promise<boolean> {
   try {
     device.value = await fetchDevice(deviceId.value);
     sensor.value = device.value.sensors.find((item) => item.id === sensorId.value) ?? null;
+    return true;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '设备信息加载失败';
+    return false;
   }
 }
 
 async function search(seq?: number) {
+  if (!range.value || !range.value[0] || !range.value[1]) {
+    error.value = '请选择时间范围';
+    return;
+  }
   loading.value = true;
   error.value = '';
   try {
@@ -95,13 +101,14 @@ function exportExcel() {
 }
 
 onMounted(async () => {
-  await loadMeta();
+  if (!(await loadMeta())) return;
   await search(++searchSeq);
 });
 
 watch([deviceId, sensorId], async () => {
-  await loadMeta();
+  const metaOk = await loadMeta();
   data.value = null;
+  if (!metaOk) return;
   await search(++searchSeq);
 });
 

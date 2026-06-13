@@ -7,6 +7,7 @@ const props = defineProps<{
 }>();
 
 function openLink(href: string) {
+  if (!/^https?:\/\//i.test(href)) return;
   const copyLink = () => {
     uni.setClipboardData({
       data: href,
@@ -14,7 +15,7 @@ function openLink(href: string) {
     });
   };
   // #ifdef H5
-  window.open(href, '_blank');
+  window.open(href, '_blank', 'noopener,noreferrer');
   // #endif
   // #ifndef H5
   const openURL = (uni as unknown as { openURL?: (options: { url: string; fail?: () => void }) => void }).openURL;

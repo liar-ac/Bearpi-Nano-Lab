@@ -41,6 +41,8 @@ static void UDPClientTask(void)
     //服务器的地址信息
     struct sockaddr_in send_addr;
     socklen_t addr_length = sizeof(send_addr);
+    struct sockaddr_in from_addr;
+    socklen_t from_length;
     char recvBuf[512];
 
     //连接Wifi
@@ -71,8 +73,9 @@ static void UDPClientTask(void)
         sleep(10);
 
         //接收服务端返回的字符串
-        recvfrom(sock_fd, recvBuf, sizeof(recvBuf), 0, (struct sockaddr *)&send_addr, &addr_length);
-        printf("%s:%d=>%s\n", inet_ntoa(send_addr.sin_addr), ntohs(send_addr.sin_port), recvBuf);
+        from_length = sizeof(from_addr);
+        recvfrom(sock_fd, recvBuf, sizeof(recvBuf), 0, (struct sockaddr *)&from_addr, &from_length);
+        printf("%s:%d=>%s\n", inet_ntoa(from_addr.sin_addr), ntohs(from_addr.sin_port), recvBuf);
     }
 
     //关闭这个 socket

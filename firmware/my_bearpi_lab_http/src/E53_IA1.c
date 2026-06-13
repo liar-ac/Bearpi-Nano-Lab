@@ -25,6 +25,13 @@
 #include "wifiiot_i2c.h"
 #include "wifiiot_i2c_ex.h"
 
+static int g_sensorEverValid = 0;
+
+int E53_IA1_SensorDataValid(void)
+{
+    return g_sensorEverValid;
+}
+
 
 /***************************************************************
 * 函数名称: E53_IA1_IO_Init
@@ -211,6 +218,7 @@ void E53_IA1_Read_Data(void)
     bh1750_i2c_data.receiveLen = 2;
     if (I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data) == 0) {
         E53_IA1_Data.Lux = (float)(((recv_data[0]<<8) + recv_data[1])/1.2);
+        g_sensorEverValid = 1;
     } else {
         printf("[E53_IA1] BH1750 I2cRead failed, keeping previous lux\r\n");
     }   
@@ -240,6 +248,7 @@ void E53_IA1_Read_Data(void)
     {
         dat = ((uint16_t)data[0] << 8) | data[1];
         E53_IA1_Data.Temperature = SHT3x_CalcTemperatureC( dat );
+        g_sensorEverValid = 1;
     } else {
         printf("[E53_IA1] SHT30 temperature CRC failed, keeping previous value\r\n");
     }
@@ -254,6 +263,7 @@ void E53_IA1_Read_Data(void)
     {
         dat = ((uint16_t)data[0] << 8) | data[1];
         E53_IA1_Data.Humidity = SHT3x_CalcRH( dat );
+        g_sensorEverValid = 1;
     } else {
         printf("[E53_IA1] SHT30 humidity CRC failed, keeping previous value\r\n");
     }

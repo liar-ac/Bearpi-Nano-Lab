@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 
 from apps.alarms.models import Alarm
 from apps.cloud.models import CloudDeviceStatus
-from apps.common.device_gateway import resolve_or_register_device, valid_device_token
+from apps.common.device_gateway import resolve_device, resolve_or_register_device, valid_device_token
 from apps.devices.models import Device, Sensor
 from apps.telemetry.models import RawPoint
 
@@ -110,6 +110,13 @@ class TelemetryIngestView(APIView):
         for item in points:
             if len(item["sensor_code"]) > 32:
                 raise ValidationError({"sensor_code": "sensor_code must be at most 32 characters"})
+        # token必须与payload解析出的目标设备绑定，防止用B设备token向A设备写入遥测
+        try:
+            bound_device = resolve_device(request.data)
+        except ValidationError:
+            bound_device = None
+        if bound_device is not None and not valid_device_token(request, device=bound_device):
+            return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
         device = resolve_or_register_device(request.data, [item["sensor_code"] for item in points])
         points = append_ia1_control_points(device, points)
 

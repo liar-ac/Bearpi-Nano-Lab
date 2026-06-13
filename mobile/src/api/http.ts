@@ -19,6 +19,8 @@ const REFRESH_KEY = 'refresh_token';
 const USER_KEY = 'bearpi_user';
 export const AUTH_CLEARED_EVENT = 'bearpi-auth-cleared';
 
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+
 let refreshPromise: Promise<string | null> | null = null;
 
 function clearSession() {
@@ -90,17 +92,16 @@ export function refreshAccessToken(): Promise<string | null> {
   )
     .then((res) => {
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        clearSession();
+        if (res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 429) {
+          clearSession();
+        }
         return null;
       }
       const next = res.data?.access ?? res.data?.access_token ?? null;
       if (next) uni.setStorageSync(TOKEN_KEY, next);
       return next;
     })
-    .catch(() => {
-      clearSession();
-      return null;
-    })
+    .catch(() => null)
     .finally(() => {
       refreshPromise = null;
     });
@@ -111,7 +112,7 @@ export async function request<T>(path: string, options: RequestOptions = {}, sig
   const token = uni.getStorageSync(TOKEN_KEY);
   let res = await rawRequest<T>(path, options, token || null, signal);
 
-  if (res.statusCode === 401 && !path.startsWith('/auth/')) {
+  if (res.statusCode === 401 && !NO_REFRESH_PATHS.some((p) => path === p || path.startsWith(`${p}?`))) {
     const nextToken = await refreshAccessToken();
     if (nextToken) {
       res = await rawRequest<T>(path, options, nextToken, signal);

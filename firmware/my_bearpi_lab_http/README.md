@@ -36,7 +36,7 @@ include/bearpi_lab_config.h
 Set:
 
 ```c
-#define BEARPI_WIFI_SSID      "liar"
+#define BEARPI_WIFI_SSID      "YOUR_WIFI_SSID"
 #define BEARPI_WIFI_PASSWORD  "your-wifi-password"
 #define BEARPI_SERVER_HOST    "10.212.180.213"
 #define BEARPI_SERVER_HOST_FALLBACK "192.168.137.1"

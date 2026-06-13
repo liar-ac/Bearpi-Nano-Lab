@@ -1,8 +1,10 @@
 // \u9632\u6B62 CSV/Excel \u516C\u5F0F\u6CE8\u5165\uFF1A\u4EE5 = + - @ TAB CR \u5F00\u5934\u7684\u5355\u5143\u683C\u5F3A\u5236\u52A0\u524D\u5BFC\u5355\u5F15\u53F7
 const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
 function sanitizeCell(raw: unknown): string {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw);
   const text = raw == null ? '' : String(raw);
-  if (FORMULA_PREFIX.test(text)) {
+  if (FORMULA_PREFIX.test(text) && !PLAIN_NUMBER.test(text)) {
     return `'${text}`;
   }
   return text;

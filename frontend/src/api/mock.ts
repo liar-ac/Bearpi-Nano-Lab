@@ -807,6 +807,23 @@ export function mockUpdateRule(sensorId: number, payload: { min?: number | null;
   });
 }
 
+const AI_MOCK_NOTICE =
+  '当前为Mock演示模式，AI分析由本地示例数据生成：实验台共4台设备，1台在线、1台预警、1台维护、1台离线，建议优先排查离线设备BEARPI-NANO-A004与预警设备BEARPI-NANO-A002。接入真实后端后可获得AI实时分析。';
+
+export function mockSendAiChat(feature: string): Promise<{ reply: string; feature: string; data_source?: string }> {
+  return delay({ reply: AI_MOCK_NOTICE, feature, data_source: 'mock' });
+}
+
+export function mockSendAiQuery(
+  question: string
+): Promise<{ reply: string; question: string; data_source?: string; diagnostic?: Record<string, unknown> }> {
+  return delay({ reply: `已收到问题「${question}」。${AI_MOCK_NOTICE}`, question, data_source: 'mock' });
+}
+
+export function mockParseAiCommand(): Promise<{ detected: boolean; explanation: string }> {
+  return delay({ detected: false, explanation: 'Mock演示模式暂不支持AI指令解析，请接入真实后端后重试' });
+}
+
 export function nextRealtimeMessage(): RealtimeMessage {
   const onlineDevices = devices.filter((device) => device.status !== 'offline');
   const device = onlineDevices[Math.floor(Math.random() * onlineDevices.length)];

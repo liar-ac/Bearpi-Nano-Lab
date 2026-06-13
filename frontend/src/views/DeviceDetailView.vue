@@ -120,11 +120,13 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    device.value = await fetchDevice(deviceId.value);
+    const dev = await fetchDevice(deviceId.value);
     if (controller.signal.aborted) return;
-    commandLogs.value = await fetchCommands(deviceId.value);
+    device.value = dev;
+    const logs = await fetchCommands(deviceId.value);
     if (controller.signal.aborted) return;
-    syncActuatorState(commandLogs.value);
+    commandLogs.value = logs;
+    syncActuatorState(logs);
   } catch (cause) {
     if (controller.signal.aborted) return;
     error.value = cause instanceof Error ? cause.message : '设备详情加载失败';

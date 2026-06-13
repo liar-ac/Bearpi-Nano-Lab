@@ -193,6 +193,7 @@ class RuleSerializer(serializers.ModelSerializer):
             "max",
             "sampleRate",
         ]
+        read_only_fields = ["code", "name", "unit", "description"]
 
     def validate(self, attrs):
         min_value = attrs.get("min_value", getattr(self.instance, "min_value", None))

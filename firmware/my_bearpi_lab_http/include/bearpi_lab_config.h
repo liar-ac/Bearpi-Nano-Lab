@@ -5,14 +5,14 @@
  * Fill these values before flashing the board.
  * Keep BEARPI_DEVICE_TOKEN_SECRET in sync with backend DEVICE_TOKEN_SECRET.
  */
-#define BEARPI_WIFI_SSID      "liar"
-#define BEARPI_WIFI_PASSWORD  "1234567890"
+#define BEARPI_WIFI_SSID      "YOUR_WIFI_SSID"
+#define BEARPI_WIFI_PASSWORD  "YOUR_WIFI_PASSWORD"
 
-#define BEARPI_SERVER_HOST    "10.211.178.163"
+#define BEARPI_SERVER_HOST    "YOUR_SERVER_IP"
 #define BEARPI_SERVER_HOST_FALLBACK "192.168.137.1"
 #define BEARPI_SERVER_PORT    8000
 #define BEARPI_DEVICE_SN      "BEARPI-NANO-A001"
-#define BEARPI_DEVICE_TOKEN_SECRET "bearpi-device-token-secret-2026"
+#define BEARPI_DEVICE_TOKEN_SECRET "replace-me-device-token-secret"
 
 /*
  * Optional: paste a precomputed per-board token here if you do not want the

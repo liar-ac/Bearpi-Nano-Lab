@@ -156,15 +156,16 @@ static BOOL WifiAPTask(void)
         
         printf("Waiting to receive data...\r\n");
         memset(recvBuf, 0, sizeof(recvBuf));
-        ret = recvfrom(sock_fd, recvBuf, sizeof(recvBuf), 0, (struct sockaddr*)&client_addr,(socklen_t*)&size_client_addr);
-        if(ret < 0)
+        ret = recvfrom(sock_fd, recvBuf, sizeof(recvBuf) - 1, 0, (struct sockaddr*)&client_addr,(socklen_t*)&size_client_addr);
+        if(ret <= 0)
         {
             printf("UDP server receive failed!\r\n");
             return -1;
         }
+        recvBuf[ret] = '\0';
         printf("receive %d bytes of data from ipaddr = %s, port = %d.\r\n", ret, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         printf("data is %s\r\n",recvBuf);
-        ret = sendto(sock_fd, recvBuf, strlen(recvBuf), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
+        ret = sendto(sock_fd, recvBuf, ret, 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
         if (ret < 0)
         {
             printf("UDP server send failed!\r\n");

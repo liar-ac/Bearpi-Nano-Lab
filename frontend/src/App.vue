@@ -26,6 +26,14 @@ router.afterEach(() => {
   }, 320);
 });
 
+router.onError(() => {
+  if (timer !== null) {
+    window.clearTimeout(timer);
+    timer = null;
+  }
+  isLoading.value = false;
+});
+
 watch(
   () => route.meta.title,
   (next) => {

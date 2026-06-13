@@ -16,6 +16,8 @@ export const AUTH_CLEARED_EVENT = 'bearpi-auth-cleared';
 
 let refreshPromise: Promise<string | null> | null = null;
 
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+
 export async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
   const refreshToken = localStorage.getItem(REFRESH_KEY);
@@ -29,7 +31,9 @@ export async function refreshAccessToken(): Promise<string | null> {
         body: JSON.stringify({ refresh: refreshToken })
       });
       if (!resp.ok) {
-        clearSession();
+        if (resp.status === 400 || resp.status === 401 || resp.status === 403) {
+          clearSession();
+        }
         return null;
       }
       const data = (await resp.json()) as { access?: string; access_token?: string };
@@ -37,7 +41,6 @@ export async function refreshAccessToken(): Promise<string | null> {
       if (next) localStorage.setItem(TOKEN_KEY, next);
       return next;
     } catch {
-      clearSession();
       return null;
     } finally {
       refreshPromise = null;
@@ -70,7 +73,7 @@ export async function request<T>(path: string, options: RequestInit = {}, signal
     signal: signal ?? undefined
   });
 
-  if (response.status === 401 && !path.startsWith('/auth/')) {
+  if (response.status === 401 && !NO_REFRESH_PATHS.some((p) => path === p || path.startsWith(`${p}?`))) {
     const nextToken = await refreshAccessToken();
     if (nextToken) {
       response = await fetch(`${API_BASE}${path}`, {

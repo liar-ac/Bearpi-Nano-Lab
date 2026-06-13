@@ -111,7 +111,15 @@ function connectWebSocket() {
   realtimeState.error = '';
 
   const url = `${WS_BASE}?token=${encodeURIComponent(String(token))}`;
-  const task = uni.connectSocket({ url }) as unknown as UniApp.SocketTask;
+  const task = uni.connectSocket({
+    url,
+    fail: (err: { errMsg?: string }) => {
+      if (gen !== connectGeneration) return;
+      socketOpening = false;
+      socketOpen = false;
+      scheduleReconnect(err?.errMsg || 'WebSocket连接建立失败');
+    }
+  }) as unknown as UniApp.SocketTask;
   socket = task;
 
   task.onOpen(() => {

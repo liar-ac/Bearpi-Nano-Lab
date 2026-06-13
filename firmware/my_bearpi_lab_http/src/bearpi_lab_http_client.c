@@ -528,6 +528,14 @@ static int HttpPostJson(const char *path, const char *json, char *response, int 
         total += n;
     }
     response[total] = '\0';
+    if (total == responseLen - 1) {
+        char probe;
+        if (recv(sock, &probe, 1, 0) > 0) {
+            printf("[bearpi-lab] http response too large, truncated\r\n");
+            CloseSocket(sock);
+            return -1;
+        }
+    }
     CloseSocket(sock);
 
     char *lineEnd = strstr(response, "\r\n");
@@ -671,8 +679,12 @@ static int TryReadSupplyVoltage(float *voltage)
     if (!ReadAdcInputVoltage(BEARPI_VOLTAGE_ADC_CHANNEL, &inputVoltage)) {
         return 0;
     }
-    *voltage = inputVoltage * BEARPI_VOLTAGE_DIVIDER_RATIO;
-    return *voltage > 0.01f;
+    float sampled = inputVoltage * BEARPI_VOLTAGE_DIVIDER_RATIO;
+    if (sampled <= 0.01f) {
+        return 0;
+    }
+    *voltage = sampled;
+    return 1;
 #else
     (void)voltage;
     return 0;
@@ -744,16 +756,24 @@ static int ReportTelemetry(void)
 {
     char json[JSON_BUF_SIZE];
     char response[HTTP_RX_BUF_SIZE];
+    char sensorMetrics[96];
     SensorSnapshot s = ReadSensorSnapshot();
+
+    sensorMetrics[0] = '\0';
+    if (E53_IA1_SensorDataValid()) {
+        snprintf(sensorMetrics, sizeof(sensorMetrics),
+            "\"temp\":%.2f,\"hum\":%.2f,\"light\":%.2f,",
+            s.temp, s.hum, s.light);
+    } else {
+        printf("[bearpi-lab] no valid sensor read yet, skipping temp/hum/light\r\n");
+    }
 
     int jsonLen = snprintf(
         json,
         sizeof(json),
-        "{\"sn\":\"%s\",\"metrics\":{\"temp\":%.2f,\"hum\":%.2f,\"light\":%.2f,\"motor\":%d,\"fill_light\":%d,\"voltage\":%.2f,\"current\":%.2f,\"power\":%.2f,\"voltage_sampled\":%d,\"current_sampled\":%d,\"power_sampled\":%d,\"power_mcu\":%.2f,\"power_wifi\":%.2f,\"power_sensor\":%.2f,\"power_motor\":%.2f,\"power_light\":%.2f}}",
+        "{\"sn\":\"%s\",\"metrics\":{%s\"motor\":%d,\"fill_light\":%d,\"voltage\":%.2f,\"current\":%.2f,\"power\":%.2f,\"voltage_sampled\":%d,\"current_sampled\":%d,\"power_sampled\":%d,\"power_mcu\":%.2f,\"power_wifi\":%.2f,\"power_sensor\":%.2f,\"power_motor\":%.2f,\"power_light\":%.2f}}",
         BEARPI_DEVICE_SN,
-        s.temp,
-        s.hum,
-        s.light,
+        sensorMetrics,
         s.motorOn,
         s.fillLightOn,
         s.voltage,
@@ -904,8 +924,19 @@ static int ParseIsoMillis(const char *text, long long *millis)
         fractionDigits++;
     }
 
+    long long offsetMs = 0;
+    if (*cursor == '+' || *cursor == '-') {
+        int sign = (*cursor == '-') ? -1 : 1;
+        int offsetHour = 0;
+        int offsetMinute = 0;
+        if (sscanf(cursor + 1, "%d:%d", &offsetHour, &offsetMinute) != 2) {
+            return 0;
+        }
+        offsetMs = (long long)sign * (offsetHour * 60 + offsetMinute) * 60000;
+    }
+
     long long days = DaysFromCivil(year, month, day);
-    *millis = (((days * 24 + hour) * 60 + minute) * 60 + second) * 1000 + fraction;
+    *millis = (((days * 24 + hour) * 60 + minute) * 60 + second) * 1000 + fraction - offsetMs;
     return 1;
 }
 

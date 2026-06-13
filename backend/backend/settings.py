@@ -50,15 +50,22 @@ if not DEBUG and SECRET_KEY.startswith("django-insecure"):
         "FATAL: DJANGO_SECRET_KEY is still the default insecure value. "
         "Set a real secret in backend/.env before running in production."
     )
-ALLOWED_HOSTS = csv_env(
-    "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost,10.212.180.213,10.211.2.200,10.211.141.163,10.211.39.29,10.211.110.10,10.190.212.175,192.168.137.1,192.168.43.1,192.168.1.1",
-)
-# Auto-inject detected LAN IP
-if LOCAL_IP and LOCAL_IP not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(LOCAL_IP)
+ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost")
 if DEBUG:
-    for host in ("10.212.180.213", "10.211.2.200", "10.211.141.163", "192.168.137.1", "10.211.110.10"):
+    # Auto-inject detected LAN IP
+    if LOCAL_IP and LOCAL_IP not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(LOCAL_IP)
+    for host in (
+        "10.212.180.213",
+        "10.211.2.200",
+        "10.211.141.163",
+        "10.211.39.29",
+        "10.211.110.10",
+        "10.190.212.175",
+        "192.168.137.1",
+        "192.168.43.1",
+        "192.168.1.1",
+    ):
         if host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(host)
 if DEBUG and os.getenv("DJANGO_DEBUG_ALLOW_ANY_HOSTS", "false").lower() == "true":
@@ -198,7 +205,9 @@ CORS_ALLOWED_ORIGINS = csv_env(
             "http://192.168.137.1:5173",
             "http://192.168.137.1:8000",
         ]
-    ),
+    )
+    if DEBUG
+    else "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174",
 )
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127\.0\.0\.1:517[0-9]$",
@@ -209,10 +218,12 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = csv_env(
     "CSRF_TRUSTED_ORIGINS",
-    "http://10.212.180.213:8000,http://10.212.180.213:5173,http://10.212.180.213:5174,http://10.211.2.200:8000,http://10.211.2.200:5173,http://10.211.141.163:8000,http://10.211.141.163:5173,http://10.211.141.163:5174,http://10.211.39.29:8000,http://10.211.39.29:5173,http://10.211.110.10:8000,http://10.211.110.10:5173,http://10.211.110.10:5174,http://10.190.212.175:8000,http://10.190.212.175:5173,http://10.190.212.175:5174,http://192.168.137.1:8000,http://192.168.137.1:5173",
+    "http://10.212.180.213:8000,http://10.212.180.213:5173,http://10.212.180.213:5174,http://10.211.2.200:8000,http://10.211.2.200:5173,http://10.211.141.163:8000,http://10.211.141.163:5173,http://10.211.141.163:5174,http://10.211.39.29:8000,http://10.211.39.29:5173,http://10.211.110.10:8000,http://10.211.110.10:5173,http://10.211.110.10:5174,http://10.190.212.175:8000,http://10.190.212.175:5173,http://10.190.212.175:5174,http://192.168.137.1:8000,http://192.168.137.1:5173"
+    if DEBUG
+    else "http://127.0.0.1:8000,http://localhost:8000",
 )
 # Auto-inject detected LAN IP into CORS and CSRF
-if LOCAL_IP and LOCAL_IP not in ("127.0.0.1", ""):
+if DEBUG and LOCAL_IP and LOCAL_IP not in ("127.0.0.1", ""):
     for _port in ("5173", "5174", "8000"):
         _origin = f"http://{LOCAL_IP}:{_port}"
         if _origin not in CORS_ALLOWED_ORIGINS:
@@ -296,3 +307,6 @@ if not DEBUG:
         warnings.warn("DEVICE_INGEST_TOKEN 未配置或仍是默认值，旧全局 token 通道不可作为生产凭据。", RuntimeWarning)
     if "*" in ALLOWED_HOSTS:
         warnings.warn("ALLOWED_HOSTS 包含 '*'，生产环境必须收紧。", RuntimeWarning)
+    for _name in ("DJANGO_ALLOWED_HOSTS", "CORS_ALLOWED_ORIGINS", "CSRF_TRUSTED_ORIGINS"):
+        if not os.getenv(_name):
+            warnings.warn(f"{_name} 未显式配置，生产环境默认仅允许本机 127.0.0.1/localhost 来源，请在 .env 中按部署地址配置。", RuntimeWarning)

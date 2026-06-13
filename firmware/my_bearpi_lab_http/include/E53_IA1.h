@@ -44,6 +44,7 @@ extern E53_IA1_Data_TypeDef E53_IA1_Data;
 
 void E53_IA1_Init(void);
 void E53_IA1_Read_Data(void);
+int E53_IA1_SensorDataValid(void);
 void Light_StatusSet(E53_IA1_Status_ENUM status);
 void Motor_StatusSet(E53_IA1_Status_ENUM status);
 

@@ -25,11 +25,13 @@ from apps.common.device_gateway import (
 from apps.devices.models import Device, DeviceCommand, Sensor
 from apps.devices.views import (
     DeviceCommandAckView,
+    DeviceCommandPullView,
     create_bulk_commands,
     filter_bulk_command_devices,
     load_bulk_task_commands,
     serialize_bulk_task,
 )
+from apps.telemetry.views import TelemetryIngestView
 
 
 def _make_device(slot_no, sn=None, status=Device.Status.ONLINE, last_seen=None):
@@ -275,6 +277,59 @@ class BoardIdentificationTests(TestCase):
         self.assertEqual(board_code_from_identifier("BEARPI-002"), "A002")
         self.assertEqual(board_code_from_identifier("xxx-002"), None)  # 不含关键字，不匹配
         self.assertEqual(board_code_from_identifier(None), None)
+
+
+class DeviceCommandPullValidationTests(TestCase):
+    """覆盖修复：pull接口非字典JSON body应返回400而非500"""
+
+    def test_pull_with_non_dict_body_returns_400(self):
+        request = APIRequestFactory().post(
+            "/api/v1/device/commands/pull",
+            [1],
+            format="json",
+            HTTP_X_DEVICE_TOKEN="any-token",
+        )
+        response = DeviceCommandPullView.as_view()(request)
+        self.assertEqual(response.status_code, 400)
+
+
+class RuleListQueryValidationTests(TestCase):
+    """覆盖修复：rules列表device_id非整数应返回400而非500"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="rule-viewer", password="pass")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_non_integer_device_id_returns_400(self):
+        response = self.client.get("/api/v1/rules?device_id=abc")
+        self.assertEqual(response.status_code, 400)
+
+
+class DeviceTokenBindingTests(TestCase):
+    """覆盖修复：为B设备签发的token不能向A设备写入遥测"""
+
+    @mock.patch("apps.common.device_gateway.settings.DEVICE_TOKEN_SECRET", "unit-test-device-secret")
+    @mock.patch("apps.common.device_gateway.settings.DEVICE_INGEST_TOKEN", "")
+    def test_token_for_other_device_rejected_on_ingest(self):
+        from apps.telemetry.models import RawPoint
+        device_a = _make_device(1, sn="BEARPI-NANO-A001")
+        device_b = _make_device(2, sn="BEARPI-NANO-A002")
+
+        request = APIRequestFactory().post(
+            "/api/v1/ingest/telemetry",
+            {
+                "sn": device_a.sn,
+                "device_id": device_b.sn,
+                "metrics": {"temp": 25.0},
+            },
+            format="json",
+            HTTP_X_DEVICE_TOKEN=device_token_for_identifier(device_b.sn),
+        )
+        response = TelemetryIngestView.as_view()(request)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(RawPoint.objects.count(), 0)
 
 
 class DeviceAutoRegisterTests(TestCase):

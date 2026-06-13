@@ -69,10 +69,10 @@ const controllableDevices = computed(() =>
 );
 
 onMounted(async () => {
-  await store.loadDevices({ status: 'all' });
   refreshTimer = window.setInterval(() => {
     void store.loadDevices({ status: 'all' });
   }, 10_000);
+  await store.loadDevices({ status: 'all' });
 });
 
 onBeforeUnmount(() => {

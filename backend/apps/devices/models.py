@@ -54,6 +54,9 @@ class Sensor(models.Model):
         return f"{self.device.sn}/{self.code}"
 
 
+DEVICE_COMMAND_AUTO_FAIL_MESSAGE = "设备超时未回执，自动判定失败"
+
+
 class DeviceCommand(models.Model):
     class Command(models.TextChoices):
         REBOOT = "reboot", "Reboot"
@@ -72,6 +75,7 @@ class DeviceCommand(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.QUEUED)
     message = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
     ack_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

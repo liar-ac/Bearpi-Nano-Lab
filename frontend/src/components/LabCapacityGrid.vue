@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router';
 import type { DeviceStatus, LabSlot } from '@/types/domain';
 import { statusLabel } from '@/utils/format';
 
@@ -19,18 +20,18 @@ function isFilteredOut(slot: LabSlot) {
 
 <template>
   <div class="lab-grid" aria-label="120 块小熊派 Nano 实验室网格">
-    <RouterLink
+    <component
+      :is="slot.device ? RouterLink : 'div'"
       v-for="slot in slots"
       :key="slot.slotNo"
-      :to="slot.device ? `/devices/${slot.device.id}` : ''"
+      :to="slot.device ? `/devices/${slot.device.id}` : undefined"
       class="lab-slot"
       :class="[slot.status, { 'has-device': Boolean(slot.device), 'filtered-out': isFilteredOut(slot) }]"
       :aria-label="slotTitle(slot)"
       :title="slotTitle(slot)"
-      :event="slot.device ? 'click' : ''"
     >
       <span class="slot-no">{{ String(slot.slotNo).padStart(3, '0') }}</span>
       <span v-if="slot.device" class="slot-device" />
-    </RouterLink>
+    </component>
   </div>
 </template>

@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { onLaunch, onShow } from '@dcloudio/uni-app';
 
-onLaunch(() => {
+onLaunch((options) => {
   // 启动时检查登录态。无 token 且不在登录页则跳到登录页。
   const token = uni.getStorageSync('access_token');
-  const pages = getCurrentPages();
-  const current = pages[pages.length - 1];
-  const route = current?.route ?? '';
+  const route = options?.path ?? '';
 
   const publicRoutes = new Set(['pages/login/index', 'pages/register/index']);
   if (!token && !publicRoutes.has(route)) {

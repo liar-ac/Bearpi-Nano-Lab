@@ -10,6 +10,7 @@ export const useDeviceStore = defineStore('devices', () => {
   const selectedStatus = ref<DeviceStatus | 'all'>('all');
   let pendingRefresh: ReturnType<typeof setTimeout> | null = null;
   let lastRefreshAt = 0;
+  let loadRequestId = 0;
 
   const filteredDevices = computed(() =>
     selectedStatus.value === 'all'
@@ -46,6 +47,7 @@ export const useDeviceStore = defineStore('devices', () => {
   });
 
   async function loadDevices(overrides: { status?: DeviceStatus | 'all'; includeInactive?: boolean } = {}) {
+    const current = ++loadRequestId;
     loading.value = true;
     error.value = null;
     try {
@@ -55,12 +57,16 @@ export const useDeviceStore = defineStore('devices', () => {
         status: status === 'all' ? undefined : status,
         includeInactive: needInactive || undefined
       });
+      if (current !== loadRequestId) return;
       devices.value = response.results;
     } catch (cause) {
+      if (current !== loadRequestId) return;
       error.value = cause instanceof Error ? cause.message : '设备列表加载失败';
     } finally {
-      loading.value = false;
-      lastRefreshAt = Date.now();
+      if (current === loadRequestId) {
+        loading.value = false;
+        lastRefreshAt = Date.now();
+      }
     }
   }
 

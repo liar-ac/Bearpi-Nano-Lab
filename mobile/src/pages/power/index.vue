@@ -23,6 +23,7 @@ const trendPoints = ref<Point[]>([]);
 let unsubscribe: (() => void) | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 let alive = true;
+let visible = false;
 let trendRequestId = 0;
 let loadRequestId = 0;
 
@@ -318,8 +319,9 @@ function applyRealtime(message: RealtimeMessage) {
 }
 
 onShow(async () => {
+  visible = true;
   await load();
-  if (!alive) return;
+  if (!alive || !visible) return;
   if (!unsubscribe) unsubscribe = subscribeRealtime(applyRealtime);
   if (!refreshTimer) {
     refreshTimer = setInterval(() => {
@@ -329,11 +331,13 @@ onShow(async () => {
 });
 
 onHide(() => {
+  visible = false;
   teardown();
 });
 
 onUnload(() => {
   alive = false;
+  visible = false;
   teardown();
 });
 

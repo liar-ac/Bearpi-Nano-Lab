@@ -78,7 +78,17 @@ const statusText = computed(() => {
 
 // ── Sessions ──────────────────────────────────────────────────
 function load() {
-  try { sessions.value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { /* */ }
+  let parsed: unknown = [];
+  try { parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { parsed = []; }
+  sessions.value = Array.isArray(parsed) ? (parsed as ChatSession[]).filter((s) => s && Array.isArray(s.messages)) : [];
+  sessions.value.forEach((s) => s.messages.forEach((m) => {
+    if (m.status === 'generating' || m.status === 'queued') {
+      m.status = 'error';
+      if (!m.content) m.content = '会话中断';
+    }
+    if (m.commandStatus === 'executing' || m.commandStatus === 'confirming') m.commandStatus = 'error';
+    if (m.editing) m.editing = false;
+  }));
   if (!sessions.value.length) create();
   if (!currentSessionId.value) currentSessionId.value = sessions.value[0].id;
 }
@@ -186,6 +196,7 @@ function confirmRename() {
 function cancelRename() { renamingId.value = ''; renameValue.value = ''; }
 
 function onRenameKey(e: KeyboardEvent) {
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
   else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
 }
@@ -196,14 +207,10 @@ function autoTitle(s: ChatSession) {
 }
 
 // ── History ───────────────────────────────────────────────────
-function buildHistory() {
-  return msgs.value.filter((m) => m.status === 'done').map((m) => ({ role: m.role, content: m.content }));
-}
-
-function ctxPrefix() {
-  const r = msgs.value.filter((m) => m.status === 'done').slice(-6)
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content.slice(0, 200)}`).join('\n');
-  return r ? `基于当前对话上下文:\n${r}\n\n请回答:\n` : '';
+function buildHistory(question: string) {
+  const h = msgs.value.filter((m) => m.status === 'done').map((m) => ({ role: m.role, content: m.content }));
+  if (h.length && h[h.length - 1].role === 'user' && h[h.length - 1].content === question) h.pop();
+  return h;
 }
 
 // ── Scroll ────────────────────────────────────────────────────
@@ -242,12 +249,13 @@ function onScroll() {
 
 // ── Keyboard ──────────────────────────────────────────────────
 function onKey(e: KeyboardEvent) {
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); send(); }
-  else if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); send(true); }
+  else if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); send(); }
 }
 
 // ── Send ──────────────────────────────────────────────────────
-function send(withCtx = false) {
+function send() {
   const q = input.value.trim();
   if (!q || !currentSession.value) return;
   snapshotScroll();
@@ -256,11 +264,10 @@ function send(withCtx = false) {
     currentSession.value.messages.push({ id: nextId(), role: 'user', content: q, ts: Date.now(), status: 'queued' });
     input.value = ''; scrollDown(true); return;
   }
-  const full = (withCtx ? ctxPrefix() : '') + q;
   const idx = currentSession.value.messages.length;
   currentSession.value.messages.push({ id: nextId(), role: 'user', content: q, ts: Date.now(), status: 'done' });
   autoTitle(currentSession.value); save(); input.value = ''; scrollDown(true);
-  if (looksCmd(q)) void detectCmd(idx); else ask(full);
+  if (looksCmd(q)) void detectCmd(idx); else ask(q);
 }
 
 // ── AI ────────────────────────────────────────────────────────
@@ -273,7 +280,7 @@ async function ask(question: string) {
   const ctrl = new AbortController(); abortController.value = ctrl;
   try {
     aiStatus.value = 'thinking';
-    const r = await sendAiQuery(question, buildHistory(), ctrl.signal) as { reply: string; data_source?: string; diagnostic?: Record<string, unknown> };
+    const r = await sendAiQuery(question, buildHistory(question), ctrl.signal) as { reply: string; data_source?: string; diagnostic?: Record<string, unknown> };
     if (ctrl.signal.aborted) return;
     aiStatus.value = 'replying';
     msg.content = r.reply; msg.dataSource = r.data_source; msg.diagnostic = r.diagnostic ?? null; msg.status = 'done'; save();
@@ -283,12 +290,20 @@ async function ask(question: string) {
   } finally {
     if (abortController.value === ctrl) { abortController.value = null; generating.value = false; aiStatus.value = 'idle'; }
     scrollDown();
-    if (!generating.value && queue.value.length) { const n = queue.value.shift()!; const qm = currentSession.value.messages.find((m) => m.status === 'queued'); if (qm) qm.status = 'done'; await nextTick(); ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ }); }
+    if (!generating.value && queue.value.length) {
+      const n = queue.value.shift()!;
+      const qm = currentSession.value.messages.find((m) => m.status === 'queued');
+      if (qm) qm.status = 'done';
+      await nextTick();
+      const qi = qm ? currentSession.value.messages.indexOf(qm) : -1;
+      if (looksCmd(n) && qi >= 0) void detectCmd(qi);
+      else ask(n).catch(() => { /* swallowed: ask() already handles errors internally */ });
+    }
   }
 }
 
 // ── Command ───────────────────────────────────────────────────
-const cmdKw = ['打开', '关闭', '关掉', '开', '关', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
+const cmdKw = ['打开', '关闭', '关掉', 'on', 'off', 'auto', '自动', '电机', '灯', '补光灯', '风扇'];
 const bulkKw = ['所有', '全部', '全部的', '所有的', '每个', '全都'];
 const actuatorKw = ['电机', '灯', '补光灯', '风扇', 'motor', 'light'];
 
@@ -339,7 +354,7 @@ async function detectCmd(idx: number) {
       const r = await parseAiCommand(user.content);
       cmd.command = r;
       if (r.detected && r.device_id) { cmd.content = `检测到控制指令: ${r.explanation || ''}`; }
-      else { cmd.content = r.explanation || '未识别为设备控制指令'; cmd.commandStatus = 'rejected'; cmd.command = undefined; }
+      else { cmd.content = r.explanation || '未识别为设备控制指令'; cmd.commandStatus = 'rejected'; cmd.command = undefined; ask(user.content); }
     }
   } catch { cmd.content = '指令解析失败'; cmd.commandStatus = 'error'; }
   scrollDown();
@@ -388,7 +403,9 @@ function stop() {
   snapshotScroll();
   const last = currentSession.value.messages[currentSession.value.messages.length - 1];
   if (last?.role === 'assistant' && last.status === 'generating') { last.content = (last.content || '') + '\n\n*[已停止]*'; last.status = 'done'; }
+  currentSession.value.messages.forEach((m) => { if (m.status === 'queued') m.status = 'done'; });
   queue.value = [];
+  save();
 }
 
 function regen(idx: number) {
@@ -410,14 +427,30 @@ function editOk(i: number, v: string) {
 }
 function editCancel(i: number) { if (currentSession.value) currentSession.value.messages[i].editing = false; }
 
-function copy(t: string) { navigator.clipboard.writeText(t).then(() => ElMessage.success('已复制')); }
+function fallbackCopy(t: string): boolean {
+  const ta = document.createElement('textarea');
+  ta.value = t;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+function copy(t: string) {
+  const finish = (ok: boolean) => { if (ok) ElMessage.success('已复制'); else ElMessage.error('复制失败'); };
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => finish(true)).catch(() => finish(fallbackCopy(t)));
+  else finish(fallbackCopy(t));
+}
 function react(i: number, r: 'up' | 'down') { if (currentSession.value) { const m = currentSession.value.messages[i]; if (m) m.reaction = m.reaction === r ? null : r; } }
 
 function useExample(q: string) {
   input.value = q;
   nextTick(() => send());
 }
-function open() { visible.value = true; load(); nextTick(() => textareaRef.value?.focus()); }
+function open() { visible.value = true; nextTick(() => textareaRef.value?.focus()); }
 function clear() { if (currentSession.value) { if (generating.value) stop(); currentSession.value.messages = []; queue.value = []; save(); } }
 function fmtTime(ts: number) { const d = new Date(ts); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
 function autoH() { const el = textareaRef.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; } }
@@ -439,6 +472,8 @@ function onGlobalKey(e: KeyboardEvent) {
   if (!visible.value) return;
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); create(); }
   if (e.key === 'Delete' && !inputFocused.value && renamingId.value === '') {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     const s = currentSession.value;
     if (s) void remove(s.id);
   }
@@ -450,7 +485,7 @@ watch(aiStatus, (status) => {
   else startStatusTimer();
 });
 watch(visible, (v) => {
-  if (v) { load(); nextTick(() => textareaRef.value?.focus()); window.addEventListener('keydown', onGlobalKey); }
+  if (v) { if (!sessions.value.length) load(); nextTick(() => textareaRef.value?.focus()); window.addEventListener('keydown', onGlobalKey); }
   else { window.removeEventListener('keydown', onGlobalKey); }
 });
 watch(input, () => nextTick(autoH));

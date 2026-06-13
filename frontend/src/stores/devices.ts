@@ -11,6 +11,8 @@ export const useDeviceStore = defineStore('devices', () => {
   // 节流：未知设备的实时消息每 5s 至多触发一次列表刷新，避免无限重载
   let pendingRefresh: ReturnType<typeof setTimeout> | null = null;
   let lastRefreshAt = 0;
+  let loadSeq = 0;
+  let lastLoadParams: { status?: DeviceStatus | 'all'; includeInactive?: boolean } = {};
 
   const filteredDevices = computed(() =>
     selectedStatus.value === 'all'
@@ -45,6 +47,8 @@ export const useDeviceStore = defineStore('devices', () => {
   });
 
   async function loadDevices(overrides: { status?: DeviceStatus | 'all'; includeInactive?: boolean } = {}) {
+    const seq = ++loadSeq;
+    lastLoadParams = overrides;
     loading.value = true;
     error.value = null;
     try {
@@ -54,12 +58,16 @@ export const useDeviceStore = defineStore('devices', () => {
         status: status === 'all' ? undefined : status,
         includeInactive: needInactive || undefined
       });
+      if (seq !== loadSeq) return;
       devices.value = response.results;
     } catch (cause) {
+      if (seq !== loadSeq) return;
       error.value = cause instanceof Error ? cause.message : '设备列表加载失败';
     } finally {
-      loading.value = false;
-      lastRefreshAt = Date.now();
+      if (seq === loadSeq) {
+        loading.value = false;
+        lastRefreshAt = Date.now();
+      }
     }
   }
 
@@ -69,7 +77,7 @@ export const useDeviceStore = defineStore('devices', () => {
     const delay = Math.max(0, 5000 - elapsed);
     pendingRefresh = setTimeout(() => {
       pendingRefresh = null;
-      void loadDevices();
+      void loadDevices(lastLoadParams);
     }, delay);
   }
 

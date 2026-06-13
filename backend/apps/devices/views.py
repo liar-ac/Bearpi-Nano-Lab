@@ -3,6 +3,7 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -15,7 +16,7 @@ from rest_framework.views import APIView
 from apps.common.device_gateway import resolve_device, valid_device_token
 from apps.audit.models import AuditLog
 from apps.audit.services import record_audit
-from apps.devices.models import Device, DeviceCommand, Sensor
+from apps.devices.models import DEVICE_COMMAND_AUTO_FAIL_MESSAGE, Device, DeviceCommand, Sensor
 from apps.devices.permissions import CanSendDeviceCommand
 from apps.devices.serializers import (
     DeviceCommandAckSerializer,
@@ -29,6 +30,8 @@ from apps.devices.serializers import (
 
 
 BULK_COMMAND_CONTROLLABLE_STATUSES = [Device.Status.ONLINE, Device.Status.WARNING]
+# SENT命令超过该时长未回执即按逾期失败处理，任务展示与重试共用同一口径
+BULK_TASK_STUCK_TIMEOUT = timedelta(minutes=5)
 
 
 def filter_bulk_command_devices(target, device_ids=None):
@@ -57,12 +60,18 @@ class DeviceListView(ListAPIView):
 
     def get_queryset(self):
         queryset = Device.objects.prefetch_related("sensors")
+        cutoff = timezone.now() - timedelta(seconds=settings.DEVICE_ACTIVE_TTL_SECONDS)
         include_inactive = self.request.query_params.get("include_inactive") == "true"
         if not include_inactive:
-            cutoff = timezone.now() - timedelta(seconds=settings.DEVICE_ACTIVE_TTL_SECONDS)
-            queryset = queryset.filter(last_seen__gte=cutoff)
+            queryset = queryset.filter(Q(last_seen__gte=cutoff) | Q(status=Device.Status.MAINTENANCE))
         status_filter = self.request.query_params.get("status")
-        if status_filter:
+        if status_filter == Device.Status.OFFLINE:
+            queryset = queryset.filter(
+                Q(status=Device.Status.OFFLINE) | Q(last_seen__lt=cutoff) | Q(last_seen__isnull=True)
+            ).exclude(status=Device.Status.MAINTENANCE)
+        elif status_filter in (Device.Status.ONLINE, Device.Status.WARNING):
+            queryset = queryset.filter(status=status_filter, last_seen__gte=cutoff)
+        elif status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
 
@@ -185,8 +194,8 @@ def serialize_bulk_task(batch_id, commands):
         DeviceCommand.Status.ACKED: 0,
         DeviceCommand.Status.FAILED: 0,
     }
-    # 超时阈值：5分钟内未ack的sent命令视为逾期（仅计算，不写DB）
-    stuck_cutoff = timezone.now() - timedelta(minutes=5)
+    # 超时阈值：SENT超过BULK_TASK_STUCK_TIMEOUT未ack视为逾期（仅计算，不写DB）
+    stuck_cutoff = timezone.now() - BULK_TASK_STUCK_TIMEOUT
     overdue_command_ids = set()
     for command in commands:
         if command.status == DeviceCommand.Status.SENT and command.created_at < stuck_cutoff:
@@ -414,7 +423,13 @@ class DeviceBulkTaskRetryView(APIView):
         if not commands:
             raise ValidationError({"batch_id": "批量任务不存在"})
 
-        failed_commands = [command for command in commands if command.status == DeviceCommand.Status.FAILED]
+        stuck_cutoff = timezone.now() - BULK_TASK_STUCK_TIMEOUT
+        failed_commands = [
+            command
+            for command in commands
+            if command.status == DeviceCommand.Status.FAILED
+            or (command.status == DeviceCommand.Status.SENT and command.created_at < stuck_cutoff)
+        ]
         if not failed_commands:
             raise ValidationError({"batch_id": "没有失败板卡可重试"})
 
@@ -476,6 +491,8 @@ class DeviceCommandPullView(APIView):
     throttle_scope = "device_commands"
 
     def post(self, request):
+        if not isinstance(request.data, dict):
+            raise ValidationError({"detail": "JSON object body required"})
         if not valid_device_token(request, request.data):
             return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -483,6 +500,8 @@ class DeviceCommandPullView(APIView):
         serializer.is_valid(raise_exception=True)
 
         device = resolve_device(serializer.validated_data)
+        if not valid_device_token(request, device=device):
+            return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
         limit = serializer.validated_data["limit"]
 
         with transaction.atomic():
@@ -496,7 +515,7 @@ class DeviceCommandPullView(APIView):
                 DeviceCommand.objects.filter(
                     id__in=command_ids,
                     status=DeviceCommand.Status.QUEUED,
-                ).update(status=DeviceCommand.Status.SENT)
+                ).update(status=DeviceCommand.Status.SENT, sent_at=timezone.now())
                 for command in commands:
                     command.status = DeviceCommand.Status.SENT
 
@@ -514,6 +533,8 @@ class DeviceCommandAckView(APIView):
     throttle_scope = "device_commands"
 
     def post(self, request):
+        if not isinstance(request.data, dict):
+            raise ValidationError({"detail": "JSON object body required"})
         if not valid_device_token(request, request.data):
             return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -521,6 +542,8 @@ class DeviceCommandAckView(APIView):
         serializer.is_valid(raise_exception=True)
 
         device = resolve_device(serializer.validated_data)
+        if not valid_device_token(request, device=device):
+            return Response({"detail": "invalid device ingest token"}, status=status.HTTP_401_UNAUTHORIZED)
         with transaction.atomic():
             command = DeviceCommand.objects.select_for_update().filter(
                 id=serializer.validated_data["command_id"],
@@ -529,10 +552,15 @@ class DeviceCommandAckView(APIView):
             if command is None:
                 raise ValidationError({"command_id": "command not found on this device"})
 
-            if command.status in [DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED]:
+            # 被recover_stale_commands自动判失败的命令，允许设备迟到的真实回执覆盖
+            auto_failed = (
+                command.status == DeviceCommand.Status.FAILED
+                and command.message == DEVICE_COMMAND_AUTO_FAIL_MESSAGE
+            )
+            if command.status in [DeviceCommand.Status.ACKED, DeviceCommand.Status.FAILED] and not auto_failed:
                 return Response(DeviceCommandSerializer(command).data)
 
-            if command.status != DeviceCommand.Status.SENT:
+            if command.status != DeviceCommand.Status.SENT and not auto_failed:
                 raise ValidationError({"command_id": f"command is in '{command.status}' status, expected 'sent'"})
 
             command.status = serializer.validated_data["status"]
@@ -576,6 +604,10 @@ class RuleListView(ListAPIView):
             queryset = queryset.filter(device__last_seen__gte=cutoff)
         device_id = self.request.query_params.get("device_id")
         if device_id:
+            try:
+                device_id = int(device_id)
+            except (TypeError, ValueError):
+                raise ValidationError({"device_id": "device_id must be an integer"})
             queryset = queryset.filter(device_id=device_id)
         return queryset
 

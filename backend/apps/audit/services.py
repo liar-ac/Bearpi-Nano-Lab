@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 
@@ -51,6 +52,10 @@ def client_ip(request):
     if trust_proxy:
         forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if forwarded_for:
-            # 取最左侧客户端 IP，再 fallback 到 REMOTE_ADDR
-            return forwarded_for.split(",")[0].strip() or remote_addr
+            # 取最左侧客户端 IP，校验为合法 IP 后采用，否则 fallback 到 REMOTE_ADDR
+            candidate = forwarded_for.split(",")[0].strip()
+            try:
+                return str(ipaddress.ip_address(candidate))
+            except ValueError:
+                pass
     return remote_addr

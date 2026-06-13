@@ -94,6 +94,10 @@ export const router = createRouter({
       name: 'users',
       component: () => import('@/views/UsersView.vue'),
       meta: { title: '用户权限', requiresAdmin: true }
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: { name: 'dashboard' }
     }
   ]
 });

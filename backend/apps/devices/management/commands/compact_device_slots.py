@@ -8,13 +8,13 @@ class Command(BaseCommand):
     help = "Reassign device slots sequentially by register time without deleting devices."
 
     def handle(self, *args, **options):
-        devices = list(Device.objects.select_for_update().order_by("register_time", "id"))
-        if not devices:
-            self.stdout.write(self.style.SUCCESS("No devices to compact."))
-            return
-
-        temp_base = max(Device.objects.values_list("slot_no", flat=True), default=0) + 1000
         with transaction.atomic():
+            devices = list(Device.objects.select_for_update().order_by("register_time", "id"))
+            if not devices:
+                self.stdout.write(self.style.SUCCESS("No devices to compact."))
+                return
+
+            temp_base = max(Device.objects.values_list("slot_no", flat=True), default=0) + 1000
             for index, device in enumerate(devices, start=1):
                 device.slot_no = temp_base + index
                 device.save(update_fields=["slot_no"])

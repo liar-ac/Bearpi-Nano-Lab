@@ -51,7 +51,11 @@ export const useAuthStore = defineStore('auth', () => {
     uni.$on(AUTH_CLEARED_EVENT, () => {
       token.value = null;
       user.value = null;
-      uni.reLaunch({ url: '/pages/login/index' });
+      const pages = getCurrentPages();
+      const route = pages[pages.length - 1]?.route ?? '';
+      if (route !== 'pages/login/index' && route !== 'pages/register/index') {
+        uni.reLaunch({ url: '/pages/login/index' });
+      }
     });
   }
 
