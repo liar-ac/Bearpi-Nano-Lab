@@ -77,7 +77,12 @@ void I2C_MPU6050_WriteData( uint8_t Reg, uint8_t Value)
   **************************************************************/
 uint8_t I2C_MPU6050_WriteBuffer(uint8_t Reg, uint8_t *pBuffer, uint16_t Length)
 {
- 
+
+    if (Length > 255) {
+        printf("I2C_MPU6050_WriteBuffer: Length %u exceeds max 255\r\n", Length);
+        return 1;
+    }
+
     uint32_t status = 0;
     WifiIotI2cData mpu6050_i2c_data = {0};
     uint8_t send_data[256] = {0};

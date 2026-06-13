@@ -99,9 +99,13 @@ float E53_SC1_Read_Data(void)
     uint8_t recv_data[2] = { 0 };
     bh1750_i2c_data.receiveBuf = recv_data;
     bh1750_i2c_data.receiveLen = 2;
-	I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data);   // 读取传感器数据
-	result = (recv_data[0]<<8) + recv_data[1];  //合成数据，即光照数据	
-	return (float)(result/1.2);    
+	if (I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data) == 0) {
+		result = (recv_data[0]<<8) + recv_data[1];  //合成数据，即光照数据
+		return (float)(result/1.2);
+	} else {
+		printf("BH1750 I2cRead failed\r\n");
+		return -1.0f;
+	}    
 }
 /***************************************************************
 * 函数名称: Light_StatusSet

@@ -207,8 +207,11 @@ void E53_IA1_Read_Data(void)
     uint8_t recv_data[2] = { 0 };
     bh1750_i2c_data.receiveBuf = recv_data;
     bh1750_i2c_data.receiveLen = 2;
-	I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data);   // 读取传感器数据
-	E53_IA1_Data.Lux = (float)(((recv_data[0]<<8) + recv_data[1])/1.2);   
+	if (I2cRead(WIFI_IOT_I2C_IDX_1, (BH1750_Addr<<1)|0x01,&bh1750_i2c_data) == 0) {
+		E53_IA1_Data.Lux = (float)(((recv_data[0]<<8) + recv_data[1])/1.2);
+	} else {
+		printf("BH1750 I2cRead failed, keeping previous lux\r\n");
+	}   
 
     uint8_t  data[3];    //data array for checksum verification
     uint16_t dat,tmp;
