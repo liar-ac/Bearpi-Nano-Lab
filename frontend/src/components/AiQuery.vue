@@ -296,9 +296,10 @@ async function ask(question: string) {
 
 async function processQueue() {
   if (generating.value || !queue.value.length) return;
-  const entry = queue.value.shift()!;
+  const entry = queue.value[0];
   const session = sessions.value.find((s) => s.id === entry.sessionId);
   if (!session || currentSession.value?.id !== entry.sessionId) return;
+  queue.value.shift();
   const qm = session.messages.find((m) => m.status === 'queued');
   if (qm) qm.status = 'done';
   await nextTick();
