@@ -295,24 +295,26 @@ async function ask(question: string) {
 }
 
 async function processQueue() {
-  if (generating.value || !queue.value.length) return;
-  const entry = queue.value[0];
-  const session = sessions.value.find((s) => s.id === entry.sessionId);
-  if (!session || currentSession.value?.id !== entry.sessionId) {
-    queue.value.shift();
-    if (session) {
-      const qm = session.messages.find((m) => m.status === 'queued');
-      if (qm) { qm.status = 'error'; qm.content = '会话已切换'; }
+  while (queue.value.length && !generating.value) {
+    const entry = queue.value[0];
+    const session = sessions.value.find((s) => s.id === entry.sessionId);
+    if (!session || currentSession.value?.id !== entry.sessionId) {
+      queue.value.shift();
+      if (session) {
+        const qm = session.messages.find((m) => m.status === 'queued');
+        if (qm) { qm.status = 'error'; qm.content = '会话已切换'; }
+      }
+      continue;
     }
+    queue.value.shift();
+    const qm = session.messages.find((m) => m.status === 'queued');
+    if (qm) qm.status = 'done';
+    await nextTick();
+    const qi = qm ? session.messages.indexOf(qm) : -1;
+    if (looksCmd(entry.question) && qi >= 0) void detectCmd(qi);
+    else ask(entry.question).catch(() => { /* swallowed: ask() already handles errors internally */ });
     return;
   }
-  queue.value.shift();
-  const qm = session.messages.find((m) => m.status === 'queued');
-  if (qm) qm.status = 'done';
-  await nextTick();
-  const qi = qm ? session.messages.indexOf(qm) : -1;
-  if (looksCmd(entry.question) && qi >= 0) void detectCmd(qi);
-  else ask(entry.question).catch(() => { /* swallowed: ask() already handles errors internally */ });
 }
 
 // ── Command ───────────────────────────────────────────────────

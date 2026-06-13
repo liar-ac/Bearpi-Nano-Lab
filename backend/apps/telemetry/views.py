@@ -7,6 +7,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -176,8 +177,9 @@ class TelemetryIngestView(APIView):
                 cloud.mqtt_status = CloudDeviceStatus.MqttStatus.CONNECTED
                 cloud.sync_status = CloudDeviceStatus.SyncStatus.SYNCED
                 cloud.last_sync = latest_ts
-                cloud.shadow_version += 1
+                cloud.shadow_version = F('shadow_version') + 1
                 cloud.save(update_fields=["mqtt_status", "sync_status", "last_sync", "shadow_version"])
+                cloud.refresh_from_db(fields=["shadow_version"])
 
         # Publish WebSocket after transaction
         channel_layer = get_channel_layer()
