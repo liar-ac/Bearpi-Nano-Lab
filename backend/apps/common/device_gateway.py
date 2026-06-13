@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -11,6 +12,8 @@ from rest_framework.exceptions import ValidationError
 from apps.cloud.models import CloudDeviceStatus
 from apps.devices.models import Device
 from apps.devices.models import Sensor
+
+logger = logging.getLogger(__name__)
 
 
 KNOWN_BOARD_PROFILES = {
@@ -414,7 +417,13 @@ def sync_known_board_profile(device, data=None):
         setattr(device, field, value)
         changed_fields.append(field)
     if changed_fields:
-        device.save(update_fields=changed_fields)
+        try:
+            device.save(update_fields=changed_fields)
+        except IntegrityError:
+            logger.warning("sync_known_board_profile: IntegrityError saving %s, skipping SN update", device.sn)
+            changed_fields = [f for f in changed_fields if f != 'sn']
+            if changed_fields:
+                device.save(update_fields=changed_fields)
 
     cloud, _ = CloudDeviceStatus.objects.get_or_create(
         device=device,

@@ -345,6 +345,7 @@ async function detectCmd(idx: number) {
       }
     } else {
       const r = await parseAiCommand(user.content);
+      if (!generating.value) return; // stop() was called while we waited
       cmd.command = r;
       if (r.detected && r.device_id) {
         cmd.content = `检测到控制指令: ${r.explanation || ''}`;
