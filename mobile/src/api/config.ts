@@ -6,7 +6,7 @@ function autoApiBase() {
   if (typeof window !== 'undefined' && window.location?.host) {
     return `${window.location.protocol}//${window.location.host}/api/v1`;
   }
-  return 'http://10.211.16.93:8000/api/v1';
+  return 'http://10.212.88.242:8000/api/v1';
 }
 
 function autoWsBase() {
@@ -14,7 +14,7 @@ function autoWsBase() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${window.location.host}/ws/realtime`;
   }
-  return 'ws://10.211.16.93:8000/ws/realtime';
+  return 'ws://10.212.88.242:8000/ws/realtime';
 }
 
 export const API_BASE = configuredApiBase && configuredApiBase !== 'auto' ? configuredApiBase : autoApiBase();
