@@ -17,7 +17,7 @@
 
 #define TASK_STACK_SIZE (1024 * 12)
 #define TASK_PRIO 25
-#define HTTP_RX_BUF_SIZE 1536
+#define HTTP_RX_BUF_SIZE 4096
 #define HTTP_TX_BUF_SIZE 1024
 #define JSON_BUF_SIZE 768
 #define ACTUATOR_AUTO (-1)
